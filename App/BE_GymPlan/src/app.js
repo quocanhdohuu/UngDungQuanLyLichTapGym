@@ -1,0 +1,45 @@
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const accountsRouter = require("./routes/accounts.route");
+const adminsRouter = require("./routes/admins.route");
+const bodymetricsRouter = require("./routes/bodymetrics.route");
+const equipmentRouter = require("./routes/equipment.route");
+const exerciseconfigsRouter = require("./routes/exerciseconfigs.route");
+const exerciseequipmentRouter = require("./routes/exerciseequipment.route");
+const exercisemusclegroupsRouter = require("./routes/exercisemusclegroups.route");
+const exercisesRouter = require("./routes/exercises.route");
+const exercisesetsRouter = require("./routes/exercisesets.route");
+const gymusersRouter = require("./routes/gymusers.route");
+const gymuserworkoutplansRouter = require("./routes/gymuserworkoutplans.route");
+const loginsessionsRouter = require("./routes/loginsessions.route");
+const musclegroupsRouter = require("./routes/musclegroups.route");
+const performedexercisesRouter = require("./routes/performedexercises.route");
+const workoutdaysRouter = require("./routes/workoutdays.route");
+const workoutplansRouter = require("./routes/workoutplans.route");
+const workoutsessionsRouter = require("./routes/workoutsessions.route");
+
+app.use("/accounts", accountsRouter);
+app.use("/admins", adminsRouter);
+app.use("/bodymetrics", bodymetricsRouter);
+app.use("/equipment", equipmentRouter);
+app.use("/exerciseconfigs", exerciseconfigsRouter);
+app.use("/exerciseequipment", exerciseequipmentRouter);
+app.use("/exercisemusclegroups", exercisemusclegroupsRouter);
+app.use("/exercises", exercisesRouter);
+app.use("/exercisesets", exercisesetsRouter);
+app.use("/gymusers", gymusersRouter);
+app.use("/gymuserworkoutplans", gymuserworkoutplansRouter);
+app.use("/loginsessions", loginsessionsRouter);
+app.use("/musclegroups", musclegroupsRouter);
+app.use("/performedexercises", performedexercisesRouter);
+app.use("/workoutdays", workoutdaysRouter);
+app.use("/workoutplans", workoutplansRouter);
+app.use("/workoutsessions", workoutsessionsRouter);
+
+module.exports = app;

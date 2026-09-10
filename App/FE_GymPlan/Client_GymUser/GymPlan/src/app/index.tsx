@@ -144,7 +144,11 @@ function SocialLoginButtons() {
   return (
     <View style={styles.socialRow}>
       <Pressable style={styles.socialButton}>
-        <Text style={[styles.socialIcon, { color: "#4285F4" }]}>G</Text>
+        <Image
+          source={require("../components/image/logoGoogle.png")}
+          style={styles.imageGoogle}
+          resizeMode="contain"
+        />
       </Pressable>
       <Pressable style={styles.socialButton}>
         <Image
@@ -185,10 +189,10 @@ function AuthFooter({
 
 export default function HomeScreen() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("athlete@gymforlife.app");
-  const [name, setName] = useState("Nguyễn Văn A");
-  const [password, setPassword] = useState("strongpassword");
-  const [confirmPassword, setConfirmPassword] = useState("strongpassword");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -235,14 +239,16 @@ export default function HomeScreen() {
               value={name}
               onChangeText={setName}
               icon="👤"
+              placeholder="Nhập họ và tên"
               error={errors.name}
             />
           )}
           <AuthInput
-            label={register ? "EMAIL" : "EMAIL HOẶC SỐ ĐIỆN THOẠI"}
+            label={register ? "EMAIL" : "EMAIL"}
             value={email}
             onChangeText={setEmail}
             icon="✉"
+            placeholder={register ? "Nhập email" : "Nhập email"}
             error={errors.email}
           />
           <AuthInput
@@ -250,6 +256,7 @@ export default function HomeScreen() {
             value={password}
             onChangeText={setPassword}
             icon="♙"
+            placeholder="Nhập mật khẩu"
             secureTextEntry={!showPassword}
             onToggleSecure={() => setShowPassword(!showPassword)}
             error={errors.password}
@@ -260,6 +267,7 @@ export default function HomeScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               icon="ↄ"
+              placeholder="Nhập lại mật khẩu"
               secureTextEntry={!showConfirm}
               onToggleSecure={() => setShowConfirm(!showConfirm)}
               error={errors.confirm}
@@ -339,10 +347,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     alignSelf: "stretch",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 9,
-    backgroundColor: colors.card,
     padding: 16,
     zIndex: 1,
   },
@@ -361,6 +365,11 @@ const styles = StyleSheet.create({
     height: 18,
     tintColor: "#FFFFFF",
   },
+  imageGoogle: {
+    width: 18,
+    height: 18,
+  },
+
   logoImage: {
     width: 50,
     height: 50,
