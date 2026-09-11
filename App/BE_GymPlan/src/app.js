@@ -7,6 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const accountsRouter = require("./routes/accounts.route");
+const authRouter = require("./routes/auth.route");
 const adminsRouter = require("./routes/admins.route");
 const bodymetricsRouter = require("./routes/bodymetrics.route");
 const equipmentRouter = require("./routes/equipment.route");
@@ -25,6 +26,7 @@ const workoutplansRouter = require("./routes/workoutplans.route");
 const workoutsessionsRouter = require("./routes/workoutsessions.route");
 
 app.use("/accounts", accountsRouter);
+app.use("/auth", authRouter);
 app.use("/admins", adminsRouter);
 app.use("/bodymetrics", bodymetricsRouter);
 app.use("/equipment", equipmentRouter);

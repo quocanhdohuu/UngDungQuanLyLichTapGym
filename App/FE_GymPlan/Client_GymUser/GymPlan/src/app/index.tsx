@@ -1,5 +1,7 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   StyleSheet,
@@ -200,7 +202,7 @@ export default function HomeScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const nextErrors: Record<string, string> = {};
     if (mode === "login") {
       if (!email.includes("@")) nextErrors.email = "Email không hợp lệ.";
@@ -216,8 +218,63 @@ export default function HomeScreen() {
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
+
+    if (mode !== "login") {
+      setLoading(true);
+      setTimeout(() => setLoading(false), 900);
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => setLoading(false), 900);
+
+    try {
+      const response = await fetch("http://localhost:3000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const message = data?.message || "Email hoặc mật khẩu không chính xác.";
+        throw new Error(message);
+      }
+
+      const role = String(
+        data?.data?.role ?? data?.role ?? data?.user?.role ?? "",
+      ).toUpperCase();
+
+      if (role === "GYM_USER") {
+        router.replace("/home");
+        return;
+      }
+
+      if (role === "ADMIN") {
+        Alert.alert(
+          "Đăng nhập thành công",
+          "Tài khoản ADMIN đã được xác thực.",
+        );
+        return;
+      }
+
+      throw new Error("Tài khoản không có quyền truy cập ứng dụng.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Đăng nhập thất bại.";
+      setErrors({
+        email: message,
+        password: message,
+      });
+      Alert.alert("Lỗi đăng nhập", message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const register = mode === "register";

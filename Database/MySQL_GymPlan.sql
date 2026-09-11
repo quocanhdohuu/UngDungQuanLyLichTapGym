@@ -21,22 +21,7 @@ CREATE TABLE Accounts (
 
 
 -- =====================================================
--- 2. ADMINS
--- =====================================================
-
-CREATE TABLE Admins (
-    accountId INT PRIMARY KEY,
-
-    CONSTRAINT fk_admin_account
-        FOREIGN KEY (accountId)
-        REFERENCES Accounts(accountId)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
-
-
--- =====================================================
--- 3. GYM USERS
+-- 2. GYM USERS
 -- =====================================================
 
 CREATE TABLE GymUsers (
@@ -63,7 +48,7 @@ CREATE TABLE GymUsers (
 
 
 -- =====================================================
--- 4. LOGIN SESSIONS
+-- 3. LOGIN SESSIONS
 -- =====================================================
 
 CREATE TABLE LoginSessions (
@@ -83,7 +68,7 @@ CREATE TABLE LoginSessions (
 
 
 -- =====================================================
--- 5. WORKOUT PLANS
+-- 4. WORKOUT PLANS
 -- =====================================================
 
 CREATE TABLE WorkoutPlans (
@@ -105,7 +90,7 @@ CREATE TABLE WorkoutPlans (
 
 
 -- =====================================================
--- 6. WORKOUT DAYS
+-- 5. WORKOUT DAYS
 -- =====================================================
 
 CREATE TABLE WorkoutDays (
@@ -126,7 +111,7 @@ CREATE TABLE WorkoutDays (
 
 
 -- =====================================================
--- 7. EXERCISES
+-- 6. EXERCISES
 -- =====================================================
 
 CREATE TABLE Exercises (
@@ -140,7 +125,7 @@ CREATE TABLE Exercises (
 
 
 -- =====================================================
--- 8. EXERCISE CONFIG
+-- 7. EXERCISE CONFIG
 -- =====================================================
 
 CREATE TABLE ExerciseConfigs (
@@ -179,7 +164,7 @@ CREATE TABLE ExerciseConfigs (
 
 
 -- =====================================================
--- 9. MUSCLE GROUPS
+-- 8. MUSCLE GROUPS
 -- =====================================================
 
 CREATE TABLE MuscleGroups (
@@ -190,7 +175,7 @@ CREATE TABLE MuscleGroups (
 
 
 -- =====================================================
--- 10. EXERCISE - MUSCLE GROUP
+-- 9. EXERCISE - MUSCLE GROUP
 -- =====================================================
 
 CREATE TABLE ExerciseMuscleGroups (
@@ -217,7 +202,7 @@ CREATE TABLE ExerciseMuscleGroups (
 
 
 -- =====================================================
--- 11. EQUIPMENT
+-- 10. EQUIPMENT
 -- =====================================================
 
 CREATE TABLE Equipment (
@@ -227,7 +212,7 @@ CREATE TABLE Equipment (
 
 
 -- =====================================================
--- 12. EXERCISE - EQUIPMENT
+-- 11. EXERCISE - EQUIPMENT
 -- =====================================================
 
 CREATE TABLE ExerciseEquipment (
@@ -251,7 +236,7 @@ CREATE TABLE ExerciseEquipment (
 
 
 -- =====================================================
--- 13. GYM USER - WORKOUT PLAN
+-- 12. GYM USER - WORKOUT PLAN
 -- =====================================================
 
 CREATE TABLE GymUserWorkoutPlans (
@@ -278,7 +263,7 @@ CREATE TABLE GymUserWorkoutPlans (
 
 
 -- =====================================================
--- 14. WORKOUT SESSIONS
+-- 13. WORKOUT SESSIONS
 -- =====================================================
 
 CREATE TABLE WorkoutSessions (
@@ -302,7 +287,7 @@ CREATE TABLE WorkoutSessions (
 
 
 -- =====================================================
--- 15. PERFORMED EXERCISES
+-- 14. PERFORMED EXERCISES
 -- =====================================================
 
 CREATE TABLE PerformedExercises (
@@ -326,7 +311,7 @@ CREATE TABLE PerformedExercises (
 
 
 -- =====================================================
--- 16. EXERCISE SETS
+-- 15. EXERCISE SETS
 -- =====================================================
 
 CREATE TABLE ExerciseSets (
@@ -358,7 +343,7 @@ CREATE TABLE ExerciseSets (
 
 
 -- =====================================================
--- 17. BODY METRICS
+-- 16. BODY METRICS
 -- =====================================================
 
 CREATE TABLE BodyMetrics (
@@ -380,3 +365,174 @@ CREATE TABLE BodyMetrics (
     CONSTRAINT chk_weight
         CHECK (weight IS NULL OR weight > 0)
 );
+
+
+SELECT * FROM `accounts`
+SELECT * FROM `gymusers`
+SELECT * FROM `loginsessions`
+
+-- =====================================================
+-- STORE PROCEDURE
+-- =====================================================
+-- 1.Store Đăng nhập
+DELIMITER $$
+
+CREATE PROCEDURE sp_Login(
+    IN p_email VARCHAR(100),
+    IN p_password VARCHAR(255)
+)
+BEGIN
+    DECLARE v_accountId INT;
+    DECLARE v_role VARCHAR(20);
+    DECLARE v_status VARCHAR(20);
+    DECLARE v_loginSessionId INT;
+
+    -- =====================================================
+    -- 1. Tìm tài khoản theo Email + Password
+    -- =====================================================
+
+    SELECT 
+        accountId,
+        role,
+        status
+    INTO
+        v_accountId,
+        v_role,
+        v_status
+    FROM Accounts
+    WHERE email = p_email
+      AND password = p_password
+    LIMIT 1;
+
+
+    -- =====================================================
+    -- 2. Không tìm thấy tài khoản
+    -- =====================================================
+
+    IF v_accountId IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Email hoặc mật khẩu không chính xác';
+
+    -- =====================================================
+    -- 3. Tài khoản không ACTIVE
+    -- =====================================================
+
+    ELSEIF v_status <> 'ACTIVE' THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Tài khoản đang bị khóa hoặc không hoạt động';
+
+    ELSE
+
+        -- =================================================
+        -- 4. Tạo Login Session
+        -- =================================================
+
+        INSERT INTO LoginSessions (
+            accountId,
+            loginTime,
+            expiration,
+            status
+        )
+        VALUES (
+            v_accountId,
+            CURRENT_TIMESTAMP,
+            DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 24 HOUR),
+            'ACTIVE'
+        );
+
+        SET v_loginSessionId = LAST_INSERT_ID();
+
+
+        -- =================================================
+        -- 5. Nếu là ADMIN
+        -- =================================================
+
+        IF v_role = 'ADMIN' THEN
+
+            SELECT
+                a.*,
+                v_loginSessionId AS loginSessionId,
+                ls.loginTime,
+                ls.expiration,
+                ls.status AS sessionStatus
+            FROM Accounts a
+            INNER JOIN LoginSessions ls
+                ON ls.loginSessionId = v_loginSessionId
+            WHERE a.accountId = v_accountId;
+
+
+        -- =================================================
+        -- 6. Nếu là GYM_USER
+        -- =================================================
+
+        ELSEIF v_role = 'GYM_USER' THEN
+
+            SELECT
+                a.*,
+                g.profileId,
+                g.fullName,
+                g.gender,
+                g.level,
+                g.goal,
+                g.sessionsPerWeek,
+                g.status AS gymUserStatus,
+                v_loginSessionId AS loginSessionId,
+                ls.loginTime,
+                ls.expiration,
+                ls.status AS sessionStatus
+            FROM Accounts a
+            INNER JOIN GymUsers g
+                ON g.accountId = a.accountId
+            INNER JOIN LoginSessions ls
+                ON ls.loginSessionId = v_loginSessionId
+            WHERE a.accountId = v_accountId;
+
+        END IF;
+
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+-- 2. Store Đăng xuất
+DELIMITER $$
+
+CREATE PROCEDURE sp_Logout(
+    IN p_accountId INT,
+    IN p_loginSessionId INT
+)
+BEGIN
+
+    UPDATE LoginSessions
+    SET status = 'LOGGED_OUT'
+    WHERE loginSessionId = p_loginSessionId
+      AND accountId = p_accountId
+      AND status = 'ACTIVE';
+
+
+    -- Kiểm tra có cập nhật được hay không
+    IF ROW_COUNT() = 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Phiên đăng nhập không tồn tại hoặc đã đăng xuất';
+
+    ELSE
+
+        SELECT
+            loginSessionId,
+            accountId,
+            loginTime,
+            expiration,
+            status
+        FROM LoginSessions
+        WHERE loginSessionId = p_loginSessionId;
+
+    END IF;
+
+END $$
+
+DELIMITER ;
+
