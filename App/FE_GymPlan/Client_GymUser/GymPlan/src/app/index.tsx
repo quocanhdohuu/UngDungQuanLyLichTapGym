@@ -210,7 +210,7 @@ export default function HomeScreen() {
     } else {
       if (!name.trim()) nextErrors.name = "Vui lòng nhập họ và tên.";
       if (!email.includes("@")) nextErrors.email = "Email không hợp lệ.";
-      if (password.length < 8)
+      if (password.length < 6)
         nextErrors.password = "Mật khẩu chưa đáp ứng yêu cầu.";
       if (password !== confirmPassword)
         nextErrors.confirm = "Mật khẩu xác nhận không khớp.";
@@ -219,31 +219,52 @@ export default function HomeScreen() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
 
-    if (mode !== "login") {
-      setLoading(true);
-      setTimeout(() => setLoading(false), 900);
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `http://localhost:3000/auth/${mode === "login" ? "login" : "register"}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...(mode === "register"
+              ? {
+                  fullName: name.trim(),
+                  email: email.trim(),
+                  password,
+                  confirmPassword,
+                  agreeTerms: terms,
+                }
+              : {
+                  email: email.trim(),
+                  password,
+                }),
+          }),
         },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+      );
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message = data?.message || "Email hoặc mật khẩu không chính xác.";
+        const message =
+          data?.message ||
+          (mode === "register"
+            ? "Đăng ký thất bại. Vui lòng thử lại."
+            : "Email hoặc mật khẩu không chính xác.");
         throw new Error(message);
+      }
+
+      if (mode === "register") {
+        const message = data?.message || "Đăng ký tài khoản thành công.";
+        setMode("login");
+        setPassword("");
+        setConfirmPassword("");
+        setErrors({});
+        Alert.alert("Đăng ký thành công", message);
+        return;
       }
 
       const role = String(

@@ -1,6 +1,30 @@
 const Auth = require("../models/auth.model");
 
 const AuthController = {
+  register: (req, res) => {
+    const { fullName, email, password, confirmPassword, agreeTerms } = req.body;
+
+    Auth.register(
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      agreeTerms,
+      (error, result) => {
+        if (error) {
+          return res.status(error.statusCode || 500).json({
+            message: error.message || "Đăng ký thất bại",
+          });
+        }
+
+        res.status(201).json({
+          message: "Đăng ký tài khoản thành công",
+          data: result,
+        });
+      },
+    );
+  },
+
   login: (req, res) => {
     const { email, password } = req.body;
 

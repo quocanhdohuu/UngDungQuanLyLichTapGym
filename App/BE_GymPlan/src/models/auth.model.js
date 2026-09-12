@@ -1,9 +1,9 @@
 const db = require("../config/db");
 
-const getProcedureError = (error) => {
+const getProcedureError = (error, statusCode = 401) => {
   if (error && error.sqlMessage) {
     const procedureError = new Error(error.sqlMessage);
-    procedureError.statusCode = 401;
+    procedureError.statusCode = statusCode;
     return procedureError;
   }
 
@@ -16,6 +16,27 @@ const getResultRow = (result) => {
 };
 
 const Auth = {
+  register: (
+    fullName,
+    email,
+    password,
+    confirmPassword,
+    agreeTerms,
+    callback,
+  ) => {
+    db.query(
+      "CALL RegisterGymUser(?, ?, ?, ?, ?)",
+      [fullName, email, password, confirmPassword, agreeTerms],
+      (error, result) => {
+        if (error) {
+          return callback(getProcedureError(error, 400));
+        }
+
+        callback(null, getResultRow(result));
+      },
+    );
+  },
+
   login: (email, password, callback) => {
     db.query("CALL sp_Login(?, ?)", [email, password], (error, result) => {
       if (error) {
