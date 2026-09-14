@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AuthMode = "login" | "register";
 
 const GREEN = "#8CFF2E";
+const API_BASE_URL = "http://192.168.0.103:3000";
 const colors = {
   background: "#080A0C",
   card: "#101416",
@@ -223,7 +224,7 @@ export default function HomeScreen() {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/auth/${mode === "login" ? "login" : "register"}`,
+        `${API_BASE_URL}/auth/${mode === "login" ? "login" : "register"}`,
         {
           method: "POST",
           headers: {
