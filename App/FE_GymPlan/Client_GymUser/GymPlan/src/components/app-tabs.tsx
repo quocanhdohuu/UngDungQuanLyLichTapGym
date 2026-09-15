@@ -62,7 +62,10 @@ export default function AppTabs() {
               key={tab.route}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
-              onPress={() => router.replace(tab.route as Href)}
+              onPress={() => {
+                if (isActive) return;
+                router.replace(tab.route as Href);
+              }}
               style={styles.tab}
             >
               <SymbolView

@@ -1,8 +1,10 @@
+import { setAuthSession } from "@/auth-session";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,7 +16,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AuthMode = "login" | "register";
 
 const GREEN = "#8CFF2E";
-const API_BASE_URL = "http://192.168.0.103:3000";
+const getApiBaseUrl = () => {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return `http://${window.location.hostname}:3000`;
+  }
+  return "http://172.20.10.6:3000";
+};
+const API_BASE_URL = getApiBaseUrl();
 const colors = {
   background: "#080A0C",
   card: "#101416",
@@ -273,6 +281,14 @@ export default function HomeScreen() {
       ).toUpperCase();
 
       if (role === "GYM_USER") {
+        const accountId = Number(data?.data?.accountId ?? data?.accountId);
+        const loginSessionId = Number(
+          data?.data?.loginSessionId ?? data?.loginSessionId,
+        );
+
+        if (Number.isFinite(accountId) && Number.isFinite(loginSessionId)) {
+          setAuthSession({ accountId, loginSessionId });
+        }
         router.replace("/home");
         return;
       }

@@ -3,7 +3,28 @@ const cors = require("cors");
 
 const app = express();
 
-app.use(cors());
+// Xử lý Private Network Access (PNA) cho các trình duyệt Chromium (Chrome, Edge)
+app.use((req, res, next) => {
+  if (req.headers["access-control-request-private-network"] === "true") {
+    res.setHeader("Access-Control-Allow-Private-Network", "true");
+  }
+  next();
+});
+
+// Cấu hình CORS cho phép các request từ web local và mobile trong mạng LAN
+app.use(
+  cors({
+    origin: true, // Tự động chấp nhận origin của request trong môi trường phát triển
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Access-Control-Request-Private-Network",
+    ],
+  })
+);
+
 app.use(express.json());
 
 const accountsRouter = require("./routes/accounts.route");
