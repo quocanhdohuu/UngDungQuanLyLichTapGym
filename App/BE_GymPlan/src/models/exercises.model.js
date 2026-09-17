@@ -18,13 +18,20 @@ Exercises.getById = (exerciseId, callback) => {
 };
 
 Exercises.getAll = (callback) => {
-  const sqlString = "SELECT * FROM `exercises`";
+  const sqlString = "CALL sp_GetAllExercises()";
   db.query(sqlString, (err, result) => {
     if (err) {
       return callback(err);
     }
-    callback(null, result);
+
+    const rows =
+      Array.isArray(result) && result.length > 0 ? result[0] : result;
+    callback(null, rows);
   });
+};
+
+Exercises.getAllWithSummary = (callback) => {
+  return Exercises.getAll(callback);
 };
 
 Exercises.insert = (exercises, callback) => {
@@ -48,12 +55,16 @@ Exercises.update = (exercises, exerciseId, callback) => {
 };
 
 Exercises.delete = (exerciseId, callback) => {
-  db.query("DELETE FROM `exercises` WHERE `exerciseId` = ?", [exerciseId], (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { message: "Xóa exercises thành công" });
-  });
+  db.query(
+    "DELETE FROM `exercises` WHERE `exerciseId` = ?",
+    [exerciseId],
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, { message: "Xóa exercises thành công" });
+    },
+  );
 };
 
 module.exports = Exercises;

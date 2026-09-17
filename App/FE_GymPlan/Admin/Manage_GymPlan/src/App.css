@@ -1265,19 +1265,19 @@ button {
   width: 155px;
 }
 .exercise-table th:nth-child(4) {
-  width: 135px;
+  width: 190px;
 }
 .exercise-table th:nth-child(5) {
-  width: 125px;
+  width: 135px;
 }
 .exercise-table th:nth-child(6) {
-  width: 115px;
+  width: 125px;
 }
 .exercise-table th:nth-child(7) {
-  width: 100px;
+  width: 115px;
 }
 .exercise-table th:nth-child(8) {
-  width: 105px;
+  width: 100px;
 }
 .exercise-table th:nth-child(9) {
   width: 70px;
@@ -1313,6 +1313,23 @@ button {
     #0a1517;
 }
 
+.exercise-image-preview,
+.exercise-video-preview {
+  display: block;
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border: 1px solid rgba(122, 255, 178, 0.18);
+  border-radius: 5px;
+  background: #0a1517;
+}
+
+.exercise-empty-row {
+  padding: 18px 12px !important;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 .exercise-name-cell strong,
 .exercise-name-cell span {
   display: block;
@@ -1331,6 +1348,11 @@ button {
   color: var(--text-muted);
   font-size: 0.6rem;
   line-height: 1.12;
+}
+
+.exercise-description-cell {
+  color: var(--text-soft);
+  line-height: 1.35;
 }
 
 .muscle-tag,

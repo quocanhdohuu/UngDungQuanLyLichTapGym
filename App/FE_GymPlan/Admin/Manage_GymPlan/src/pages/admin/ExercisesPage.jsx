@@ -1,85 +1,48 @@
-const exercises = [
-  {
-    id: "#EX-101",
-    name: "Barbell Bench Press",
-    description: "Đẩy ngực ngang đòn",
-    primary: "Ngực - Chest",
-    secondary: "Tay sau, Vai trước",
-    equipment: "Đòn Barbell",
-    difficulty: "Intermediate",
-    status: "Đang dùng",
-  },
-  {
-    id: "#EX-102",
-    name: "Incline Dumbbell Press",
-    description: "Đẩy ngực trên tạ đơn",
-    primary: "Ngực trên",
-    secondary: "Vai trước, Tay sau",
-    equipment: "Tạ Dumbbell",
-    difficulty: "Beginner",
-    status: "Đang dùng",
-  },
-  {
-    id: "#EX-103",
-    name: "Barbell Back Squat",
-    description: "Gánh tạ đòn sau lưng",
-    primary: "Đùi trước - Quads",
-    secondary: "Mông (Glutes), Lưng dưới",
-    equipment: "Đòn Barbell",
-    difficulty: "Advanced",
-    status: "Đang dùng",
-  },
-  {
-    id: "#EX-104",
-    name: "Romanian Deadlift (RDL)",
-    description: "Kéo tạ chân thẳng đùi sau",
-    primary: "Đùi sau - Hamstrings",
-    secondary: "Mông, Lưng dưới",
-    equipment: "Đòn Barbell",
-    difficulty: "Intermediate",
-    status: "Bản nháp",
-  },
-  {
-    id: "#EX-105",
-    name: "Overhead Shoulder Press",
-    description: "Đẩy vai qua đầu",
-    primary: "Vai - Shoulders",
-    secondary: "Tay sau, Cơ vai",
-    equipment: "Đòn Barbell",
-    difficulty: "Intermediate",
-    status: "Đang dùng",
-  },
-];
+import { useEffect, useMemo, useState } from "react";
 
-const statCards = [
-  {
-    label: "TỔNG SỐ BÀI TẬP",
-    value: "342",
-    detail: "bài trong kho",
-    icon: "exercise",
-  },
-  {
-    label: "ĐÃ CÓ VIDEO 4K",
-    value: "310",
-    detail: "90.6%",
-    icon: "video",
-    accent: "green",
-  },
-  {
-    label: "COMPOUND LIFT",
-    value: "48",
-    detail: "Đa khớp chính",
-    icon: "compound",
-    accent: "orange",
-  },
-  {
-    label: "ĐANG KÍCH HOẠT",
-    value: "338",
-    detail: "4 Bản nháp",
-    icon: "active",
-    accent: "green",
-  },
-];
+const PAGE_SIZE = 5;
+const EXERCISES_API_URL = "http://localhost:3000/exercises/summary";
+
+const splitValues = (value) => {
+  if (!value) return [];
+
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getDifficultyLabel = (value) => {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+
+  const labels = {
+    EASY: "Easy",
+    MEDIUM: "Medium",
+    HARD: "Hard",
+    BEGINNER: "Beginner",
+    INTERMEDIATE: "Intermediate",
+    ADVANCED: "Advanced",
+  };
+
+  return labels[normalized] || normalized || "Unknown";
+};
+
+const getMediaType = (url) => {
+  if (!url || !String(url).trim()) return "empty";
+
+  const normalized = String(url).trim().toLowerCase();
+
+  if (
+    normalized.includes("/video/") ||
+    /\.(mp4|webm|ogg|mov|avi)(\?|$)/i.test(normalized)
+  ) {
+    return "video";
+  }
+
+  return "image";
+};
 
 function ExerciseIcon({ name }) {
   const props = {
@@ -91,34 +54,6 @@ function ExerciseIcon({ name }) {
     strokeLinejoin: "round",
     "aria-hidden": "true",
   };
-
-  if (name === "video") {
-    return (
-      <svg {...props}>
-        <rect x="3" y="5" width="18" height="14" rx="2" />
-        <path d="m10 9 5 3-5 3V9Z" />
-      </svg>
-    );
-  }
-
-  if (name === "compound") {
-    return (
-      <svg {...props}>
-        <circle cx="7" cy="12" r="3" />
-        <circle cx="17" cy="12" r="3" />
-        <path d="M10 12h4" />
-      </svg>
-    );
-  }
-
-  if (name === "active") {
-    return (
-      <svg {...props}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="m8.5 12 2.3 2.3 4.7-5" />
-      </svg>
-    );
-  }
 
   if (name === "eye") {
     return (
@@ -147,6 +82,211 @@ function ExerciseIcon({ name }) {
 }
 
 const ExercisesPage = () => {
+  const [exercises, setExercises] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [muscleFilter, setMuscleFilter] = useState("ALL");
+  const [equipmentFilter, setEquipmentFilter] = useState("ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadExercises = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(EXERCISES_API_URL);
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setExercises(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch exercises:", err);
+
+        if (isMounted) {
+          setError("Không thể tải danh sách bài tập.");
+          setExercises([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadExercises();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const muscleOptions = useMemo(() => {
+    const values = new Set();
+
+    exercises.forEach((exercise) => {
+      splitValues(exercise.primaryMuscles).forEach((item) => values.add(item));
+    });
+
+    return [...values].sort((a, b) => a.localeCompare(b));
+  }, [exercises]);
+
+  const equipmentOptions = useMemo(() => {
+    const values = new Set();
+
+    exercises.forEach((exercise) => {
+      splitValues(exercise.equipment).forEach((item) => values.add(item));
+    });
+
+    return [...values].sort((a, b) => a.localeCompare(b));
+  }, [exercises]);
+
+  const difficultyOptions = useMemo(() => {
+    const values = new Set();
+
+    exercises.forEach((exercise) => {
+      if (exercise.difficulty) {
+        values.add(String(exercise.difficulty).trim());
+      }
+    });
+
+    return [...values].sort((a, b) => a.localeCompare(b));
+  }, [exercises]);
+
+  const filteredExercises = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return exercises.filter((exercise) => {
+      const searchableText = [
+        exercise.name,
+        exercise.primaryMuscles,
+        exercise.secondaryMuscles,
+        exercise.equipment,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !query || searchableText.includes(query);
+
+      const primaryMuscles = splitValues(exercise.primaryMuscles).map((item) =>
+        item.toLowerCase(),
+      );
+
+      const matchesMuscle =
+        muscleFilter === "ALL" ||
+        primaryMuscles.includes(muscleFilter.toLowerCase());
+
+      const equipmentValues = splitValues(exercise.equipment).map((item) =>
+        item.toLowerCase(),
+      );
+
+      const matchesEquipment =
+        equipmentFilter === "ALL" ||
+        equipmentValues.includes(equipmentFilter.toLowerCase());
+
+      const matchesDifficulty =
+        difficultyFilter === "ALL" ||
+        String(exercise.difficulty || "").toUpperCase() ===
+          String(difficultyFilter).toUpperCase();
+
+      return (
+        matchesSearch && matchesMuscle && matchesEquipment && matchesDifficulty
+      );
+    });
+  }, [exercises, searchTerm, muscleFilter, equipmentFilter, difficultyFilter]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredExercises.length / PAGE_SIZE),
+  );
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedExercises = filteredExercises.slice(
+    startIndex,
+    startIndex + PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleMuscleChange = (event) => {
+    setMuscleFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleEquipmentChange = (event) => {
+    setEquipmentFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleDifficultyChange = (event) => {
+    setDifficultyFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setMuscleFilter("ALL");
+    setEquipmentFilter("ALL");
+    setDifficultyFilter("ALL");
+    setCurrentPage(1);
+  };
+
+  const renderPreview = (exercise) => {
+    if (!exercise.preview || !String(exercise.preview).trim()) {
+      return (
+        <div
+          className="exercise-preview empty"
+          aria-label={`Preview ${exercise.name}`}
+        />
+      );
+    }
+
+    const mediaType = getMediaType(exercise.preview);
+
+    if (mediaType === "video") {
+      return (
+        <video
+          className="exercise-video-preview"
+          src={exercise.preview}
+          muted
+          preload="metadata"
+          playsInline
+          aria-label={`Preview ${exercise.name}`}
+        />
+      );
+    }
+
+    return (
+      <img
+        className="exercise-image-preview"
+        src={exercise.preview}
+        alt={exercise.name}
+        aria-label={`Preview ${exercise.name}`}
+      />
+    );
+  };
+
+  const shownStart = filteredExercises.length === 0 ? 0 : startIndex + 1;
+  const shownEnd = Math.min(startIndex + PAGE_SIZE, filteredExercises.length);
+
   return (
     <div className="exercises-page">
       <div className="exercise-page-header">
@@ -169,36 +309,61 @@ const ExercisesPage = () => {
         </button>
       </div>
 
-      <div className="exercise-stats-grid">
-        {statCards.map((stat) => (
-          <div className="exercise-stat-card" key={stat.label}>
-            <div className="exercise-stat-label">{stat.label}</div>
-            <div className={`exercise-stat-icon ${stat.accent || ""}`}>
-              <ExerciseIcon name={stat.icon} />
-            </div>
-            <div className="exercise-stat-value-row">
-              <strong className={stat.accent || ""}>{stat.value}</strong>
-              <span>{stat.detail}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div className="exercise-filter-panel">
-        <div className="exercise-search">
+        <label className="exercise-search">
           <span>⌕</span>
-          <input readOnly placeholder="Tìm tên bài tập, nhóm cơ, thiết bị..." />
-        </div>
-        <button type="button" className="exercise-filter">
-          Nhóm cơ: Tất cả (Toàn thân)<span>⌄</span>
-        </button>
-        <button type="button" className="exercise-filter">
-          Thiết bị: Tất cả<span>⌄</span>
-        </button>
-        <button type="button" className="exercise-filter">
-          Độ khó: Tất cả<span>⌄</span>
-        </button>
-        <button type="button" className="exercise-refresh" aria-label="Làm mới">
+          <input
+            value={searchTerm}
+            onChange={handleSearchChange}
+            placeholder="Tìm tên bài tập, nhóm cơ, thiết bị..."
+          />
+        </label>
+
+        <select
+          className="exercise-filter"
+          value={muscleFilter}
+          onChange={handleMuscleChange}
+        >
+          <option value="ALL">Nhóm cơ: Tất cả</option>
+          {muscleOptions.map((muscle) => (
+            <option key={muscle} value={muscle}>
+              {muscle}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="exercise-filter"
+          value={equipmentFilter}
+          onChange={handleEquipmentChange}
+        >
+          <option value="ALL">Thiết bị: Tất cả</option>
+          {equipmentOptions.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="exercise-filter"
+          value={difficultyFilter}
+          onChange={handleDifficultyChange}
+        >
+          <option value="ALL">Độ khó: Tất cả</option>
+          {difficultyOptions.map((item) => (
+            <option key={item} value={item}>
+              {getDifficultyLabel(item)}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className="exercise-refresh"
+          onClick={handleResetFilters}
+          aria-label="Làm mới"
+        >
           ↻
         </button>
       </div>
@@ -211,79 +376,133 @@ const ExercisesPage = () => {
                 <th>STT</th>
                 <th>PREVIEW</th>
                 <th>TÊN BÀI TẬP</th>
+                <th>MÔ TẢ</th>
                 <th>CƠ CHÍNH</th>
                 <th>CƠ PHỤ</th>
                 <th>THIẾT BỊ</th>
                 <th>ĐỘ KHÓ</th>
-                <th>TRẠNG THÁI</th>
                 <th>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
-              {exercises.map((exercise, index) => (
-                <tr key={exercise.id}>
-                  <td className="exercise-stt">{index + 1}</td>
-                  <td>
-                    <div
-                      className="exercise-preview"
-                      aria-label={`Preview ${exercise.name}`}
-                    />
-                  </td>
-                  <td className="exercise-name-cell">
-                    <strong>{exercise.name}</strong>
-                    <span>{exercise.description}</span>
-                  </td>
-                  <td>
-                    <span className="muscle-tag">{exercise.primary}</span>
-                  </td>
-                  <td className="exercise-secondary">{exercise.secondary}</td>
-                  <td className="exercise-equipment">⚒ {exercise.equipment}</td>
-                  <td>
-                    <span
-                      className={`difficulty-tag ${exercise.difficulty.toLowerCase()}`}
-                    >
-                      {exercise.difficulty}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`exercise-status ${exercise.status === "Bản nháp" ? "draft" : "active"}`}
-                    >
-                      <i />
-                      {exercise.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="exercise-actions">
-                      <button type="button" aria-label="Xem">
-                        <ExerciseIcon name="eye" />
-                      </button>
-                      <button type="button" aria-label="Chỉnh sửa">
-                        <ExerciseIcon name="edit" />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="exercise-empty-row">
+                    Đang tải danh sách bài tập...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan="9" className="exercise-empty-row">
+                    {error}
+                  </td>
+                </tr>
+              ) : paginatedExercises.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="exercise-empty-row">
+                    Không tìm thấy bài tập phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                paginatedExercises.map((exercise, index) => {
+                  const rowNumber = startIndex + index + 1;
+
+                  return (
+                    <tr
+                      key={
+                        exercise.exerciseId ?? `${exercise.name}-${rowNumber}`
+                      }
+                    >
+                      <td className="exercise-stt">{rowNumber}</td>
+                      <td>{renderPreview(exercise)}</td>
+                      <td className="exercise-name-cell">
+                        <strong>{exercise.name}</strong>
+                        <span>{exercise.description}</span>
+                      </td>
+                      <td className="exercise-description-cell">
+                        {exercise.description || "-"}
+                      </td>
+                      <td>
+                        <span className="muscle-tag">
+                          {splitValues(exercise.primaryMuscles)[0] || "-"}
+                        </span>
+                      </td>
+                      <td className="exercise-secondary">
+                        {splitValues(exercise.secondaryMuscles).join(", ") ||
+                          "-"}
+                      </td>
+                      <td className="exercise-equipment">
+                        ⚒ {splitValues(exercise.equipment).join(", ") || "-"}
+                      </td>
+                      <td>
+                        <span
+                          className={`difficulty-tag ${String(
+                            exercise.difficulty || "",
+                          )
+                            .trim()
+                            .toLowerCase()}`}
+                        >
+                          {getDifficultyLabel(exercise.difficulty)}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="exercise-actions">
+                          <button type="button" aria-label="Xem">
+                            <ExerciseIcon name="eye" />
+                          </button>
+                          <button type="button" aria-label="Chỉnh sửa">
+                            <ExerciseIcon name="edit" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        <div className="exercise-pagination">
-          <span>Hiển thị 1 - 5 trên 342 bài tập</span>
-          <div>
-            <button type="button" disabled>
-              Trang trước
-            </button>
-            <button type="button" className="active">
-              1
-            </button>
-            <button type="button">2</button>
-            <button type="button">3</button>
-            <span>...</span>
-            <button type="button">69</button>
-            <button type="button">Sau</button>
+
+        {!loading && !error && filteredExercises.length > 0 && (
+          <div className="exercise-pagination">
+            <span>
+              Hiển thị {shownStart} - {shownEnd} trên {filteredExercises.length}{" "}
+              bài tập
+            </span>
+            <div>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              >
+                Trang trước
+              </button>
+
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                (pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    className={pageNumber === currentPage ? "active" : ""}
+                    onClick={() => setCurrentPage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </button>
+                ),
+              )}
+
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+              >
+                Sau
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
