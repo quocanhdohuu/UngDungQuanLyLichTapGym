@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Exercisemusclegroups = (exercisemusclegroups) => {
   this.exerciseMuscleGroupId = exercisemusclegroups.exerciseMuscleGroupId;
@@ -8,8 +8,7 @@ const Exercisemusclegroups = (exercisemusclegroups) => {
 };
 
 Exercisemusclegroups.getById = (exerciseMuscleGroupId, callback) => {
-  const sqlString =
-    "SELECT * FROM `exercisemusclegroups` WHERE `exerciseMuscleGroupId` = ?";
+  const sqlString = "SELECT * FROM `exercisemusclegroups` WHERE `exerciseMuscleGroupId` = ?";
   db.query(sqlString, [exerciseMuscleGroupId], (err, result) => {
     if (err) {
       return callback(err);
@@ -34,43 +33,27 @@ Exercisemusclegroups.insert = (exercisemusclegroups, callback) => {
     if (err) {
       return callback(err);
     }
-    callback(null, {
-      exerciseMuscleGroupId: res.insertId,
-      ...exercisemusclegroups,
-    });
+    callback(null, { exerciseMuscleGroupId: res.insertId, ...exercisemusclegroups });
   });
 };
 
-Exercisemusclegroups.update = (
-  exercisemusclegroups,
-  exerciseMuscleGroupId,
-  callback,
-) => {
-  const sqlString =
-    "UPDATE `exercisemusclegroups` SET ? WHERE `exerciseMuscleGroupId` = ?";
-  db.query(
-    sqlString,
-    [exercisemusclegroups, exerciseMuscleGroupId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Cập nhật exercisemusclegroups thành công" });
-    },
-  );
+Exercisemusclegroups.update = (exercisemusclegroups, exerciseMuscleGroupId, callback) => {
+  const sqlString = "UPDATE `exercisemusclegroups` SET ? WHERE `exerciseMuscleGroupId` = ?";
+  db.query(sqlString, [exercisemusclegroups, exerciseMuscleGroupId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Cập nhật exercisemusclegroups thành công" });
+  });
 };
 
 Exercisemusclegroups.delete = (exerciseMuscleGroupId, callback) => {
-  db.query(
-    "DELETE FROM `exercisemusclegroups` WHERE `exerciseMuscleGroupId` = ?",
-    [exerciseMuscleGroupId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa exercisemusclegroups thành công" });
-    },
-  );
+  db.query("DELETE FROM `exercisemusclegroups` WHERE `exerciseMuscleGroupId` = ?", [exerciseMuscleGroupId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa exercisemusclegroups thành công" });
+  });
 };
 
 module.exports = Exercisemusclegroups;

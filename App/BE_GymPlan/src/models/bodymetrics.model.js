@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Bodymetrics = (bodymetrics) => {
   this.metricId = bodymetrics.metricId;
@@ -49,16 +49,12 @@ Bodymetrics.update = (bodymetrics, metricId, callback) => {
 };
 
 Bodymetrics.delete = (metricId, callback) => {
-  db.query(
-    "DELETE FROM `bodymetrics` WHERE `metricId` = ?",
-    [metricId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa bodymetrics thành công" });
-    },
-  );
+  db.query("DELETE FROM `bodymetrics` WHERE `metricId` = ?", [metricId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa bodymetrics thành công" });
+  });
 };
 
 module.exports = Bodymetrics;

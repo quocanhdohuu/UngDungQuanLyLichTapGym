@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Accounts = (accounts) => {
   this.accountId = accounts.accountId;
@@ -51,16 +51,12 @@ Accounts.update = (accounts, accountId, callback) => {
 };
 
 Accounts.delete = (accountId, callback) => {
-  db.query(
-    "DELETE FROM `accounts` WHERE `accountId` = ?",
-    [accountId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa accounts thành công" });
-    },
-  );
+  db.query("DELETE FROM `accounts` WHERE `accountId` = ?", [accountId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa accounts thành công" });
+  });
 };
 
 module.exports = Accounts;

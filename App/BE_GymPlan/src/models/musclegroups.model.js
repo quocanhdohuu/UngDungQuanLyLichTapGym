@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Musclegroups = (musclegroups) => {
   this.groupId = musclegroups.groupId;
@@ -47,16 +47,12 @@ Musclegroups.update = (musclegroups, groupId, callback) => {
 };
 
 Musclegroups.delete = (groupId, callback) => {
-  db.query(
-    "DELETE FROM `musclegroups` WHERE `groupId` = ?",
-    [groupId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa musclegroups thành công" });
-    },
-  );
+  db.query("DELETE FROM `musclegroups` WHERE `groupId` = ?", [groupId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa musclegroups thành công" });
+  });
 };
 
 module.exports = Musclegroups;

@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Loginsessions = (loginsessions) => {
   this.loginSessionId = loginsessions.loginSessionId;
@@ -49,16 +49,12 @@ Loginsessions.update = (loginsessions, loginSessionId, callback) => {
 };
 
 Loginsessions.delete = (loginSessionId, callback) => {
-  db.query(
-    "DELETE FROM `loginsessions` WHERE `loginSessionId` = ?",
-    [loginSessionId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa loginsessions thành công" });
-    },
-  );
+  db.query("DELETE FROM `loginsessions` WHERE `loginSessionId` = ?", [loginSessionId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa loginsessions thành công" });
+  });
 };
 
 module.exports = Loginsessions;

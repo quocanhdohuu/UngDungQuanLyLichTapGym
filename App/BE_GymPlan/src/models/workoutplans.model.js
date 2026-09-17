@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Workoutplans = (workoutplans) => {
   this.planId = workoutplans.planId;
@@ -51,16 +51,12 @@ Workoutplans.update = (workoutplans, planId, callback) => {
 };
 
 Workoutplans.delete = (planId, callback) => {
-  db.query(
-    "DELETE FROM `workoutplans` WHERE `planId` = ?",
-    [planId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa workoutplans thành công" });
-    },
-  );
+  db.query("DELETE FROM `workoutplans` WHERE `planId` = ?", [planId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa workoutplans thành công" });
+  });
 };
 
 module.exports = Workoutplans;

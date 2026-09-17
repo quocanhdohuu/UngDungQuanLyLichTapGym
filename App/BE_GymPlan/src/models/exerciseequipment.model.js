@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Exerciseequipment = (exerciseequipment) => {
   this.exerciseId = exerciseequipment.exerciseId;
@@ -46,16 +46,12 @@ Exerciseequipment.update = (exerciseequipment, exerciseId, callback) => {
 };
 
 Exerciseequipment.delete = (exerciseId, callback) => {
-  db.query(
-    "DELETE FROM `exerciseequipment` WHERE `exerciseId` = ?",
-    [exerciseId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa exerciseequipment thành công" });
-    },
-  );
+  db.query("DELETE FROM `exerciseequipment` WHERE `exerciseId` = ?", [exerciseId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa exerciseequipment thành công" });
+  });
 };
 
 module.exports = Exerciseequipment;

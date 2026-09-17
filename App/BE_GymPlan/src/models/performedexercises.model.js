@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Performedexercises = (performedexercises) => {
   this.performedExerciseId = performedexercises.performedExerciseId;
@@ -8,8 +8,7 @@ const Performedexercises = (performedexercises) => {
 };
 
 Performedexercises.getById = (performedExerciseId, callback) => {
-  const sqlString =
-    "SELECT * FROM `performedexercises` WHERE `performedExerciseId` = ?";
+  const sqlString = "SELECT * FROM `performedexercises` WHERE `performedExerciseId` = ?";
   db.query(sqlString, [performedExerciseId], (err, result) => {
     if (err) {
       return callback(err);
@@ -34,20 +33,12 @@ Performedexercises.insert = (performedexercises, callback) => {
     if (err) {
       return callback(err);
     }
-    callback(null, {
-      performedExerciseId: res.insertId,
-      ...performedexercises,
-    });
+    callback(null, { performedExerciseId: res.insertId, ...performedexercises });
   });
 };
 
-Performedexercises.update = (
-  performedexercises,
-  performedExerciseId,
-  callback,
-) => {
-  const sqlString =
-    "UPDATE `performedexercises` SET ? WHERE `performedExerciseId` = ?";
+Performedexercises.update = (performedexercises, performedExerciseId, callback) => {
+  const sqlString = "UPDATE `performedexercises` SET ? WHERE `performedExerciseId` = ?";
   db.query(sqlString, [performedexercises, performedExerciseId], (err, res) => {
     if (err) {
       return callback(err);
@@ -57,16 +48,12 @@ Performedexercises.update = (
 };
 
 Performedexercises.delete = (performedExerciseId, callback) => {
-  db.query(
-    "DELETE FROM `performedexercises` WHERE `performedExerciseId` = ?",
-    [performedExerciseId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa performedexercises thành công" });
-    },
-  );
+  db.query("DELETE FROM `performedexercises` WHERE `performedExerciseId` = ?", [performedExerciseId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa performedexercises thành công" });
+  });
 };
 
 module.exports = Performedexercises;

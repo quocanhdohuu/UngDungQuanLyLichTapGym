@@ -1,10 +1,9 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Exercises = (exercises) => {
   this.exerciseId = exercises.exerciseId;
   this.name = exercises.name;
   this.description = exercises.description;
-  this.mediaUrl = exercises.mediaUrl;
   this.difficulty = exercises.difficulty;
 };
 
@@ -49,16 +48,12 @@ Exercises.update = (exercises, exerciseId, callback) => {
 };
 
 Exercises.delete = (exerciseId, callback) => {
-  db.query(
-    "DELETE FROM `exercises` WHERE `exerciseId` = ?",
-    [exerciseId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa exercises thành công" });
-    },
-  );
+  db.query("DELETE FROM `exercises` WHERE `exerciseId` = ?", [exerciseId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa exercises thành công" });
+  });
 };
 
 module.exports = Exercises;

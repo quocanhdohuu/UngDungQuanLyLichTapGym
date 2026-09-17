@@ -1,9 +1,9 @@
-const Admins = require('../models/admins.model');
+const Exercisemedia = require('../models/exercisemedia.model');
 
-const AdminsController = {
+const ExercisemediaController = {
 
   getAll: (req, res) => {
-    Admins.getAll((err, result) => {
+    Exercisemedia.getAll((err, result) => {
       if (err) {
         return res.status(500).json({
           message: 'Lỗi khi lấy dữ liệu',
@@ -15,9 +15,9 @@ const AdminsController = {
   },
 
   getById: (req, res) => {
-    const id = req.params.accountId;
+    const id = req.params.mediaId;
 
-    Admins.getById(id, (err, result) => {
+    Exercisemedia.getById(id, (err, result) => {
       if (err) {
         return res.status(500).json({
           message: 'Lỗi khi lấy dữ liệu',
@@ -38,7 +38,7 @@ const AdminsController = {
   create: (req, res) => {
     const data = req.body;
 
-    Admins.insert(data, (err, result) => {
+    Exercisemedia.insert(data, (err, result) => {
       if (err) {
         return res.status(500).json({
           message: 'Thêm dữ liệu thất bại',
@@ -54,10 +54,10 @@ const AdminsController = {
   },
 
   update: (req, res) => {
-    const id = req.params.accountId;
+    const id = req.params.mediaId;
     const data = req.body;
 
-    Admins.update(data, id, (err, result) => {
+    Exercisemedia.update(data, id, (err, result) => {
       if (err) {
         return res.status(500).json({
           message: 'Cập nhật thất bại',
@@ -73,9 +73,9 @@ const AdminsController = {
   },
 
   delete: (req, res) => {
-    const id = req.params.accountId;
+    const id = req.params.mediaId;
 
-    Admins.delete(id, (err, result) => {
+    Exercisemedia.delete(id, (err, result) => {
       if (err) {
         return res.status(500).json({
           message: 'Xóa thất bại',
@@ -92,4 +92,4 @@ const AdminsController = {
 
 };
 
-module.exports = AdminsController;
+module.exports = ExercisemediaController;

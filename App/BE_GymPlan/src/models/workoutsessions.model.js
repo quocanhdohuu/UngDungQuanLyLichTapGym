@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Workoutsessions = (workoutsessions) => {
   this.workoutSessionId = workoutsessions.workoutSessionId;
@@ -10,8 +10,7 @@ const Workoutsessions = (workoutsessions) => {
 };
 
 Workoutsessions.getById = (workoutSessionId, callback) => {
-  const sqlString =
-    "SELECT * FROM `workoutsessions` WHERE `workoutSessionId` = ?";
+  const sqlString = "SELECT * FROM `workoutsessions` WHERE `workoutSessionId` = ?";
   db.query(sqlString, [workoutSessionId], (err, result) => {
     if (err) {
       return callback(err);
@@ -41,8 +40,7 @@ Workoutsessions.insert = (workoutsessions, callback) => {
 };
 
 Workoutsessions.update = (workoutsessions, workoutSessionId, callback) => {
-  const sqlString =
-    "UPDATE `workoutsessions` SET ? WHERE `workoutSessionId` = ?";
+  const sqlString = "UPDATE `workoutsessions` SET ? WHERE `workoutSessionId` = ?";
   db.query(sqlString, [workoutsessions, workoutSessionId], (err, res) => {
     if (err) {
       return callback(err);
@@ -52,16 +50,12 @@ Workoutsessions.update = (workoutsessions, workoutSessionId, callback) => {
 };
 
 Workoutsessions.delete = (workoutSessionId, callback) => {
-  db.query(
-    "DELETE FROM `workoutsessions` WHERE `workoutSessionId` = ?",
-    [workoutSessionId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa workoutsessions thành công" });
-    },
-  );
+  db.query("DELETE FROM `workoutsessions` WHERE `workoutSessionId` = ?", [workoutSessionId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa workoutsessions thành công" });
+  });
 };
 
 module.exports = Workoutsessions;

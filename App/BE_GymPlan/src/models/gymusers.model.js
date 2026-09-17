@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Gymusers = (gymusers) => {
   this.profileId = gymusers.profileId;
@@ -52,16 +52,12 @@ Gymusers.update = (gymusers, profileId, callback) => {
 };
 
 Gymusers.delete = (profileId, callback) => {
-  db.query(
-    "DELETE FROM `gymusers` WHERE `profileId` = ?",
-    [profileId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa gymusers thành công" });
-    },
-  );
+  db.query("DELETE FROM `gymusers` WHERE `profileId` = ?", [profileId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa gymusers thành công" });
+  });
 };
 
 module.exports = Gymusers;

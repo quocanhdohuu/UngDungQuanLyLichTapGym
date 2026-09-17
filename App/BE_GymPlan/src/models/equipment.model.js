@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Equipment = (equipment) => {
   this.equipmentId = equipment.equipmentId;
@@ -46,16 +46,12 @@ Equipment.update = (equipment, equipmentId, callback) => {
 };
 
 Equipment.delete = (equipmentId, callback) => {
-  db.query(
-    "DELETE FROM `equipment` WHERE `equipmentId` = ?",
-    [equipmentId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa equipment thành công" });
-    },
-  );
+  db.query("DELETE FROM `equipment` WHERE `equipmentId` = ?", [equipmentId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa equipment thành công" });
+  });
 };
 
 module.exports = Equipment;

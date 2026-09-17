@@ -1,4 +1,4 @@
-const db = require("../config/db");
+const db = require("../common/db");
 
 const Exercisesets = (exercisesets) => {
   this.setId = exercisesets.setId;
@@ -50,16 +50,12 @@ Exercisesets.update = (exercisesets, setId, callback) => {
 };
 
 Exercisesets.delete = (setId, callback) => {
-  db.query(
-    "DELETE FROM `exercisesets` WHERE `setId` = ?",
-    [setId],
-    (err, res) => {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, { message: "Xóa exercisesets thành công" });
-    },
-  );
+  db.query("DELETE FROM `exercisesets` WHERE `setId` = ?", [setId], (err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, { message: "Xóa exercisesets thành công" });
+  });
 };
 
 module.exports = Exercisesets;
