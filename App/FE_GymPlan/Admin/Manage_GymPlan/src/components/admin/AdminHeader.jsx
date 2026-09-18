@@ -31,7 +31,6 @@ const AdminHeader = () => {
           <div className="user-avatar-small">QA</div>
           <div className="user-meta">
             <span className="user-name">Admin Quoc Anh</span>
-            <span className="user-role">Super Admin</span>
           </div>
           <span className="dropdown-caret">▾</span>
         </div>

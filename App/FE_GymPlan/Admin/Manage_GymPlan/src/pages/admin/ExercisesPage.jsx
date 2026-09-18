@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 5;
-const EXERCISES_API_URL = "http://localhost:3000/exercises/summary";
+const API_BASE_URL = "http://localhost:3000";
+const EXERCISES_API_URL = "http://localhost:3000/api/exercises/summary";
+const DIFFICULTIES = [
+  { value: "EASY", label: "Beginner" },
+  { value: "MEDIUM", label: "Intermediate" },
+  { value: "HARD", label: "Advanced" },
+];
+
+const emptyForm = () => ({
+  name: "",
+  description: "",
+  difficulty: "EASY",
+  muscleGroups: [],
+  equipmentIds: [],
+  media: [],
+});
 
 const splitValues = (value) => {
   if (!value) return [];
@@ -90,26 +105,36 @@ const ExercisesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formMode, setFormMode] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [muscleGroups, setMuscleGroups] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [formError, setFormError] = useState("");
+  const [formLoading, setFormLoading] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const loadExercises = async () => {
+    const response = await fetch(EXERCISES_API_URL);
+    if (!response.ok)
+      throw new Error(`Request failed with status ${response.status}`);
+    const data = await response.json();
+    setExercises(Array.isArray(data) ? data : []);
+  };
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadExercises = async () => {
+    const loadExerciseList = async () => {
       setLoading(true);
       setError("");
 
       try {
         const response = await fetch(EXERCISES_API_URL);
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(`Request failed with status ${response.status}`);
-        }
-
         const data = await response.json();
-
-        if (isMounted) {
-          setExercises(Array.isArray(data) ? data : []);
-        }
+        if (isMounted) setExercises(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch exercises:", err);
 
@@ -124,12 +149,245 @@ const ExercisesPage = () => {
       }
     };
 
-    loadExercises();
+    loadExerciseList();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API_BASE_URL}/musclegroups`),
+      fetch(`${API_BASE_URL}/equipment`),
+    ])
+      .then(async ([groupsResponse, equipmentResponse]) => {
+        if (!groupsResponse.ok || !equipmentResponse.ok)
+          throw new Error("Không thể tải tùy chọn form");
+        const [groups, equipmentItems] = await Promise.all([
+          groupsResponse.json(),
+          equipmentResponse.json(),
+        ]);
+        setMuscleGroups(Array.isArray(groups) ? groups : []);
+        setEquipment(Array.isArray(equipmentItems) ? equipmentItems : []);
+      })
+      .catch(() => setFormError("Không thể tải nhóm cơ hoặc thiết bị."));
+  }, []);
+
+  const openAddForm = () => {
+    setFormMode("add");
+    setForm(emptyForm());
+    setFormError("");
+  };
+
+  const openEditForm = async (exerciseId) => {
+    setFormMode("edit");
+    setFormLoading(true);
+    setFormError("");
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/exercises/${exerciseId}`,
+      );
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.message || "Không thể tải bài tập");
+      setForm({
+        name: data.name || "",
+        description: data.description || "",
+        difficulty: data.difficulty || "EASY",
+        muscleGroups: Array.isArray(data.muscleGroups) ? data.muscleGroups : [],
+        equipmentIds: Array.isArray(data.equipmentIds)
+          ? data.equipmentIds.map(Number)
+          : [],
+        media: (Array.isArray(data.media) ? data.media : []).map((item) => ({
+          ...item,
+          _existing: true,
+        })),
+        exerciseId: data.exerciseId,
+      });
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const closeForm = () => {
+    if (!formLoading && !mediaLoading) setFormMode(null);
+  };
+
+  const updateMuscleGroups = (role, event) => {
+    const selectedIds = [...event.target.selectedOptions].map((option) =>
+      Number(option.value),
+    );
+    const otherRole = role === "PRIMARY" ? "SECONDARY" : "PRIMARY";
+    const otherGroups = form.muscleGroups.filter(
+      (item) => item.role === otherRole,
+    );
+    setForm((current) => ({
+      ...current,
+      muscleGroups: [
+        ...otherGroups,
+        ...selectedIds
+          .filter(
+            (id) => !otherGroups.some((item) => Number(item.groupId) === id),
+          )
+          .map((groupId) => ({ groupId, role })),
+      ],
+    }));
+  };
+
+  const toggleSecondaryMuscle = (groupId) => {
+    setForm((current) => {
+      const normalizedGroupId = Number(groupId);
+      const isPrimary = current.muscleGroups.some(
+        (item) =>
+          item.role === "PRIMARY" && Number(item.groupId) === normalizedGroupId,
+      );
+
+      if (isPrimary) return current;
+
+      const isSelected = current.muscleGroups.some(
+        (item) =>
+          item.role === "SECONDARY" &&
+          Number(item.groupId) === normalizedGroupId,
+      );
+
+      return {
+        ...current,
+        muscleGroups: isSelected
+          ? current.muscleGroups.filter(
+              (item) =>
+                !(
+                  item.role === "SECONDARY" &&
+                  Number(item.groupId) === normalizedGroupId
+                ),
+            )
+          : [
+              ...current.muscleGroups,
+              { groupId: normalizedGroupId, role: "SECONDARY" },
+            ],
+      };
+    });
+  };
+
+  const toggleEquipment = (equipmentId) => {
+    const normalizedEquipmentId = Number(equipmentId);
+    setForm((current) => ({
+      ...current,
+      equipmentIds: current.equipmentIds.includes(normalizedEquipmentId)
+        ? current.equipmentIds.filter((id) => id !== normalizedEquipmentId)
+        : [...current.equipmentIds, normalizedEquipmentId],
+    }));
+  };
+
+  const handleMediaUpload = async (event) => {
+    const files = [...event.target.files];
+    if (files.length === 0) return;
+    setMediaLoading(true);
+    setFormError("");
+    try {
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          const body = new FormData();
+          body.append("file", file);
+          const response = await fetch(
+            `${API_BASE_URL}/api/exercises/media/upload`,
+            { method: "POST", body },
+          );
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.message || "Upload media thất bại");
+          return data.data;
+        }),
+      );
+      setForm((current) => ({
+        ...current,
+        media: [...current.media, ...uploaded],
+      }));
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setMediaLoading(false);
+      event.target.value = "";
+    }
+  };
+
+  const removeMedia = async (media) => {
+    setForm((current) => ({
+      ...current,
+      media: current.media.filter((item) => item !== media),
+    }));
+    if (!media._existing && media.publicId) {
+      await fetch(`${API_BASE_URL}/api/exercises/media`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicId: media.publicId,
+          mediaType: media.mediaType,
+        }),
+      });
+    }
+  };
+
+  const submitForm = async (event) => {
+    event.preventDefault();
+    if (formLoading || mediaLoading) return;
+    const primaryCount = form.muscleGroups.filter(
+      (item) => item.role === "PRIMARY",
+    ).length;
+    if (!form.name.trim())
+      return setFormError("Tên bài tập không được để trống.");
+    if (primaryCount === 0)
+      return setFormError("Phải chọn ít nhất một cơ chính.");
+
+    setFormLoading(true);
+    setFormError("");
+    const payload = {
+      name: form.name.trim(),
+      description: form.description,
+      difficulty: form.difficulty,
+      muscleGroups: form.muscleGroups.map((item) => ({
+        groupId: Number(item.groupId),
+        role: item.role,
+      })),
+      equipmentIds: form.equipmentIds.map(Number),
+      media: form.media.map((item, index) => ({
+        mediaUrl: item.mediaUrl,
+        publicId: item.publicId,
+        mediaType: item.mediaType,
+        sortOrder: index + 1,
+      })),
+    };
+
+    try {
+      const isEdit = formMode === "edit";
+      const response = await fetch(
+        isEdit
+          ? `${API_BASE_URL}/api/exercises/${form.exerciseId}`
+          : `${API_BASE_URL}/api/exercises`,
+        {
+          method: isEdit ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.message || "Không thể lưu bài tập");
+      await loadExercises();
+      setFormMode(null);
+      setForm(emptyForm());
+      setNotice(
+        isEdit ? "Cập nhật bài tập thành công." : "Thêm bài tập thành công.",
+      );
+      window.setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
 
   const muscleOptions = useMemo(() => {
     const values = new Set();
@@ -209,17 +467,12 @@ const ExercisesPage = () => {
     1,
     Math.ceil(filteredExercises.length / PAGE_SIZE),
   );
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageForDisplay = Math.min(currentPage, totalPages);
+  const startIndex = (pageForDisplay - 1) * PAGE_SIZE;
   const paginatedExercises = filteredExercises.slice(
     startIndex,
     startIndex + PAGE_SIZE,
   );
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -304,7 +557,11 @@ const ExercisesPage = () => {
             GYMFORLIFE.
           </p>
         </div>
-        <button type="button" className="exercise-add-button">
+        <button
+          type="button"
+          className="exercise-add-button"
+          onClick={openAddForm}
+        >
           + THÊM BÀI TẬP MỚI
         </button>
       </div>
@@ -450,7 +707,11 @@ const ExercisesPage = () => {
                           <button type="button" aria-label="Xem">
                             <ExerciseIcon name="eye" />
                           </button>
-                          <button type="button" aria-label="Chỉnh sửa">
+                          <button
+                            type="button"
+                            aria-label="Chỉnh sửa"
+                            onClick={() => openEditForm(exercise.exerciseId)}
+                          >
                             <ExerciseIcon name="edit" />
                           </button>
                         </div>
@@ -472,7 +733,7 @@ const ExercisesPage = () => {
             <div>
               <button
                 type="button"
-                disabled={currentPage === 1}
+                disabled={pageForDisplay === 1}
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               >
                 Trang trước
@@ -483,7 +744,7 @@ const ExercisesPage = () => {
                   <button
                     key={pageNumber}
                     type="button"
-                    className={pageNumber === currentPage ? "active" : ""}
+                    className={pageNumber === pageForDisplay ? "active" : ""}
                     onClick={() => setCurrentPage(pageNumber)}
                   >
                     {pageNumber}
@@ -493,7 +754,7 @@ const ExercisesPage = () => {
 
               <button
                 type="button"
-                disabled={currentPage === totalPages}
+                disabled={pageForDisplay === totalPages}
                 onClick={() =>
                   setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                 }
@@ -504,6 +765,249 @@ const ExercisesPage = () => {
           </div>
         )}
       </div>
+
+      {notice && <div className="exercise-notice">{notice}</div>}
+
+      {formMode && (
+        <div
+          className="exercise-modal-backdrop"
+          role="presentation"
+          onMouseDown={closeForm}
+        >
+          <form
+            className="exercise-modal"
+            onSubmit={submitForm}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="exercise-modal-header">
+              <h2>
+                {formMode === "edit" ? "CHỈNH SỬA BÀI TẬP" : "THÊM BÀI TẬP"}
+              </h2>
+              <button
+                type="button"
+                className="exercise-modal-close"
+                onClick={closeForm}
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
+            {formError && <p className="exercise-form-error">{formError}</p>}
+            {formLoading && formMode === "edit" ? (
+              <p className="exercise-form-loading">Đang tải dữ liệu...</p>
+            ) : (
+              <>
+                <label className="exercise-form-field">
+                  Tên bài tập *
+                  <input
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm({ ...form, name: event.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label className="exercise-form-field">
+                  Mô tả
+                  <textarea
+                    value={form.description}
+                    onChange={(event) =>
+                      setForm({ ...form, description: event.target.value })
+                    }
+                    rows="3"
+                  />
+                </label>
+                <label className="exercise-form-field">
+                  Độ khó
+                  <select
+                    value={form.difficulty}
+                    onChange={(event) =>
+                      setForm({ ...form, difficulty: event.target.value })
+                    }
+                  >
+                    {DIFFICULTIES.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="exercise-form-grid">
+                  <label className="exercise-form-field">
+                    Cơ chính *
+                    <select
+                      multiple
+                      value={form.muscleGroups
+                        .filter((item) => item.role === "PRIMARY")
+                        .map((item) => String(item.groupId))}
+                      onChange={(event) => updateMuscleGroups("PRIMARY", event)}
+                    >
+                      {muscleGroups.map((item) => (
+                        <option key={item.groupId} value={item.groupId}>
+                          {item.groupName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="exercise-form-field">
+                    Cơ phụ
+                    <div className="exercise-choice-list">
+                      {muscleGroups.map((item) => (
+                        <button
+                          type="button"
+                          key={item.groupId}
+                          className={`exercise-choice-item ${
+                            form.muscleGroups.some(
+                              (group) =>
+                                group.role === "SECONDARY" &&
+                                Number(group.groupId) === Number(item.groupId),
+                            )
+                              ? "selected"
+                              : ""
+                          }`}
+                          disabled={form.muscleGroups.some(
+                            (group) =>
+                              group.role === "PRIMARY" &&
+                              Number(group.groupId) === Number(item.groupId),
+                          )}
+                          onClick={() => toggleSecondaryMuscle(item.groupId)}
+                        >
+                          <span
+                            className="exercise-choice-check"
+                            aria-hidden="true"
+                          >
+                            {form.muscleGroups.some(
+                              (group) =>
+                                group.role === "SECONDARY" &&
+                                Number(group.groupId) === Number(item.groupId),
+                            )
+                              ? "✓"
+                              : ""}
+                          </span>
+                          {item.groupName}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="exercise-selected-items">
+                      {form.muscleGroups
+                        .filter((item) => item.role === "SECONDARY")
+                        .map((item) => {
+                          const group = muscleGroups.find(
+                            (option) =>
+                              Number(option.groupId) === Number(item.groupId),
+                          );
+                          return (
+                            <button
+                              type="button"
+                              className="exercise-selected-chip"
+                              key={item.groupId}
+                              onClick={() =>
+                                toggleSecondaryMuscle(item.groupId)
+                              }
+                            >
+                              {group?.groupName || item.groupId} ×
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </label>
+                </div>
+                <label className="exercise-form-field">
+                  Thiết bị
+                  <div className="exercise-choice-list equipment-choice-list">
+                    {equipment.map((item) => (
+                      <button
+                        type="button"
+                        key={item.equipmentId}
+                        className={`exercise-choice-item ${
+                          form.equipmentIds.includes(Number(item.equipmentId))
+                            ? "selected"
+                            : ""
+                        }`}
+                        onClick={() => toggleEquipment(item.equipmentId)}
+                      >
+                        <span
+                          className="exercise-choice-check"
+                          aria-hidden="true"
+                        >
+                          {form.equipmentIds.includes(Number(item.equipmentId))
+                            ? "✓"
+                            : ""}
+                        </span>
+                        {item.equipmentName}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="exercise-selected-items">
+                    {form.equipmentIds.map((equipmentId) => {
+                      const item = equipment.find(
+                        (option) =>
+                          Number(option.equipmentId) === Number(equipmentId),
+                      );
+                      return (
+                        <button
+                          type="button"
+                          className="exercise-selected-chip"
+                          key={equipmentId}
+                          onClick={() => toggleEquipment(equipmentId)}
+                        >
+                          {item?.equipmentName || equipmentId} ×
+                        </button>
+                      );
+                    })}
+                  </div>
+                </label>
+                <div className="exercise-form-field">
+                  <span>Media</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                    multiple
+                    onChange={handleMediaUpload}
+                    disabled={mediaLoading}
+                  />
+                  <div className="exercise-media-list">
+                    {form.media.map((item) => (
+                      <div
+                        className="exercise-media-item"
+                        key={`${item.publicId}-${item.sortOrder}`}
+                      >
+                        {item.mediaType === "VIDEO" ? (
+                          <video src={item.mediaUrl} muted preload="metadata" />
+                        ) : (
+                          <img src={item.mediaUrl} alt="Media bài tập" />
+                        )}
+                        <span>
+                          {item.mediaType} {item.mediaUrl.split("/").pop()}
+                        </span>
+                        <button type="button" onClick={() => removeMedia(item)}>
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="exercise-modal-actions">
+                  <button
+                    type="button"
+                    className="exercise-cancel-button"
+                    onClick={closeForm}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="exercise-save-button"
+                    disabled={formLoading || mediaLoading}
+                  >
+                    {formLoading ? "Đang lưu..." : "Lưu bài tập"}
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
+        </div>
+      )}
     </div>
   );
 };

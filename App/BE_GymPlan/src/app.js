@@ -65,6 +65,7 @@ app.use("/exerciseequipment", exerciseequipmentRouter);
 app.use("/exercisemedia", exercisemediaRouter);
 app.use("/exercisemusclegroups", exercisemusclegroupsRouter);
 app.use("/exercises", exercisesRouter);
+app.use("/api/exercises", exercisesRouter);
 app.use("/exercisesets", exercisesetsRouter);
 app.use("/gymusers", gymusersRouter);
 app.use("/gymuserworkoutplans", gymuserworkoutplansRouter);

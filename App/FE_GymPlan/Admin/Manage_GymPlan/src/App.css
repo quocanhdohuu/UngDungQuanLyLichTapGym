@@ -1476,6 +1476,254 @@ button {
   color: #526064;
 }
 
+.exercise-notice {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 20;
+  padding: 10px 14px;
+  border: 1px solid rgba(100, 243, 156, 0.22);
+  border-radius: 7px;
+  background: #19251f;
+  color: #9dff65;
+  font-size: 0.7rem;
+}
+
+.exercise-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(3, 8, 9, 0.72);
+}
+
+.exercise-modal {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #191e21;
+  color: var(--text-soft);
+}
+
+.exercise-modal-header,
+.exercise-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exercise-modal-header {
+  margin-bottom: 16px;
+}
+
+.exercise-modal-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
+.exercise-modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+}
+
+.exercise-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.exercise-form-field input,
+.exercise-form-field textarea,
+.exercise-form-field select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  outline: 0;
+  background: rgba(31, 37, 40, 0.88);
+  color: var(--text-soft);
+  font: inherit;
+}
+
+.exercise-form-field input,
+.exercise-form-field select {
+  min-height: 34px;
+  padding: 0 9px;
+}
+
+.exercise-form-field textarea {
+  padding: 9px;
+  resize: vertical;
+}
+
+.exercise-form-field select[multiple] {
+  min-height: 86px;
+  padding: 5px;
+}
+
+.exercise-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: rgba(31, 37, 40, 0.88);
+}
+
+.equipment-choice-list {
+  max-height: 112px;
+  overflow-y: auto;
+}
+
+.exercise-choice-item {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  background: rgba(34, 40, 43, 0.95);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.exercise-choice-item:hover {
+  border-color: rgba(132, 255, 31, 0.5);
+  color: #dfe6e5;
+}
+
+.exercise-choice-item.selected {
+  border-color: rgba(132, 255, 31, 0.58);
+  background: rgba(111, 235, 35, 0.14);
+  color: #9dff65;
+}
+
+.exercise-choice-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.exercise-choice-check {
+  display: inline-block;
+  width: 12px;
+  margin-right: 3px;
+  color: #9dff65;
+  font-weight: 800;
+}
+
+.exercise-selected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 2px;
+  margin-top: 5px;
+}
+
+.exercise-selected-chip {
+  padding: 4px 7px;
+  border: 1px solid rgba(132, 255, 31, 0.35);
+  border-radius: 4px;
+  background: rgba(111, 235, 35, 0.1);
+  color: #9dff65;
+  font: inherit;
+  font-size: 0.59rem;
+  cursor: pointer;
+}
+
+.exercise-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.exercise-form-error {
+  margin: 0 0 12px;
+  color: #ff9292;
+  font-size: 0.68rem;
+}
+
+.exercise-form-loading {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.exercise-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.exercise-media-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  color: var(--text-soft);
+  font-size: 0.62rem;
+}
+
+.exercise-media-item img,
+.exercise-media-item video {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid rgba(122, 255, 178, 0.18);
+  border-radius: 5px;
+  background: #0a1517;
+}
+
+.exercise-media-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exercise-media-item button,
+.exercise-cancel-button,
+.exercise-save-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 0.65rem;
+}
+
+.exercise-media-item button,
+.exercise-cancel-button {
+  background: rgba(34, 40, 43, 0.95);
+  color: var(--text-soft);
+}
+
+.exercise-save-button {
+  background: #84ff1f;
+  color: #07120a;
+  font-weight: 800;
+}
+
+.exercise-save-button:disabled {
+  opacity: 0.55;
+}
+
 .workout-page {
   min-width: 980px;
   color: var(--text);

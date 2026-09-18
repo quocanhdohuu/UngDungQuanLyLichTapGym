@@ -89,7 +89,6 @@ function AdminSidebar() {
         </div>
         <div className="brand-copy">
           <span className="brand-name">GYMF0RLIFE</span>
-          <span className="brand-sub">ADMIN PORTAL</span>
         </div>
       </div>
 
