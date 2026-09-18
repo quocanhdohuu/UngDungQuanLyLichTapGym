@@ -1,123 +1,294 @@
-const users = [
-  {
-    id: "#GFL-8921",
-    name: "Quoc Anh",
-    role: "Pro Athlete",
-    email: "quocanh.fit@gymforlife.app",
-    phone: "+84 908 123 456",
-    status: "VIP PRO",
-    level: "Intermediate",
-    state: "ONLINE",
-    avatar: "QA",
-    accent: "green",
-    details: {
-      height: "175 cm",
-      weight: "67.0 kg",
-      bmi: "21.9",
-      goal: "TĂNG CƠ",
-      progress: 75,
-      currentPlan: "Push Pull Legs Split (PPL)",
-      week: "Tuần 4/8",
-      completed: "24/32 buổi",
-      volume: "185.4T",
-      pr: {
-        bench: "60 kg",
-        squat: "100 kg",
-        deadlift: "120 kg",
-      },
-      workout: "Push Day - Chest & Triceps",
-      workoutWeight: "12.5 T",
-      workoutMeta: "6 bài tập • 18 sets hoàn thành",
-      duration: "45 phút",
-    },
-  },
-  {
-    id: "#GFL-8922",
-    name: "Tran Hoang Minh",
-    role: "Standard Lifter",
-    email: "minh.tran@gmail.com",
-    phone: "+84 914 345 678",
-    status: "ACTIVE",
-    level: "Beginner",
-    state: "AD",
-    avatar: "TM",
-    accent: "gray",
-  },
-  {
-    id: "#GFL-8923",
-    name: "Le Thu Ha",
-    role: "Standard Lifter",
-    email: "thuh.a.fitness@gmail.com",
-    phone: "+84 983 222 111",
-    status: "ACTIVE",
-    level: "Intermediate",
-    state: "BE",
-    avatar: "LH",
-    accent: "gray",
-  },
-  {
-    id: "#GFL-8924",
-    name: "Đặng Nam",
-    role: "Tài khoản bị khóa",
-    email: "dangnam.sg@yahoo.com",
-    phone: "+84 908 888 999",
-    status: "LOCKED",
-    level: "Beginner",
-    state: "DN",
-    avatar: "DN",
-    accent: "red",
-  },
-  {
-    id: "#GFL-8925",
-    name: "Nguyen Van Huy",
-    role: "Standard Lifter",
-    email: "huy.nguyen@outlook.com",
-    phone: "+84 977 444 333",
-    status: "ACTIVE",
-    level: "Intermediate",
-    state: "BE",
-    avatar: "NH",
-    accent: "gray",
-  },
+import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+
+const API_URL = "http://localhost:3000/api/users";
+const PAGE_SIZE = 5;
+const FREQUENCY_OPTIONS = [
+  { value: "ALL", label: "Tất cả lịch" },
+  { value: "1-2", label: "1-2 buổi/tuần" },
+  { value: "3-4", label: "3-4 buổi/tuần" },
+  { value: "5-7", label: "5-7 buổi/tuần" },
 ];
 
-const stats = [
-  {
-    label: "TỔNG HỘI VIÊN",
-    value: "12,450",
-    delta: "+12%",
-    hint: "So với tháng trước (11,116)",
-    accent: "bright",
-  },
-  { label: "ĐANG HOẠT ĐỘNG", value: "9,820", delta: "78.8%", progress: 78.8 },
-  { label: "HỘI VIÊN VIP / PRO", value: "3,240", delta: "26.0%", progress: 26 },
-  {
-    label: "TRONG PHIÊN TẬP",
-    value: "412",
-    delta: "athletes active",
-    accent: "muted",
-  },
-];
+const emptyForm = {
+  username: "",
+  email: "",
+  password: "",
+  fullName: "",
+  gender: "",
+  level: "",
+  goal: "",
+  sessionsPerWeek: "",
+  status: "ACTIVE",
+};
 
-const selectedUser = users[0];
+const displayValue = (value) => value || "-";
+const getStatus = (user) => user.accountStatus || user.profileStatus || "";
+const getInitials = (name) =>
+  String(name || "?")
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+const getErrorMessage = async (response, fallback) => {
+  try {
+    const data = await response.json();
+    return data.message || fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 function UsersPage() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [levelFilter, setLevelFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [frequencyFilter, setFrequencyFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [formMode, setFormMode] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
+  const [formLoading, setFormLoading] = useState(false);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(
+            response,
+            "Không thể tải danh sách người dùng.",
+          ),
+        );
+      }
+      const data = await response.json();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      setError(requestError.message || "Không thể tải danh sách người dùng.");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchUsers = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error(
+            await getErrorMessage(
+              response,
+              "Không thể tải danh sách người dùng.",
+            ),
+          );
+        }
+        const data = await response.json();
+        if (isMounted) setUsers(Array.isArray(data) ? data : []);
+      } catch (requestError) {
+        if (isMounted) {
+          setError(
+            requestError.message || "Không thể tải danh sách người dùng.",
+          );
+          setUsers([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchUsers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const statusOptions = useMemo(
+    () => [...new Set(users.map(getStatus).filter(Boolean))],
+    [users],
+  );
+
+  const filteredUsers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return users.filter((user) => {
+      const searchable = [
+        user.profileId,
+        user.accountId,
+        user.fullName,
+        user.username,
+        user.email,
+      ]
+        .join(" ")
+        .toLowerCase();
+      const sessions = Number(user.sessionsPerWeek);
+      const matchesFrequency =
+        frequencyFilter === "ALL" ||
+        (frequencyFilter === "1-2" && sessions >= 1 && sessions <= 2) ||
+        (frequencyFilter === "3-4" && sessions >= 3 && sessions <= 4) ||
+        (frequencyFilter === "5-7" && sessions >= 5 && sessions <= 7);
+
+      return (
+        (!query || searchable.includes(query)) &&
+        (levelFilter === "ALL" || user.level === levelFilter) &&
+        (statusFilter === "ALL" || getStatus(user) === statusFilter) &&
+        matchesFrequency
+      );
+    });
+  }, [users, searchTerm, levelFilter, statusFilter, frequencyFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const pageUsers = filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const updateFilter = (setter) => (event) => {
+    setter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setLevelFilter("ALL");
+    setStatusFilter("ALL");
+    setFrequencyFilter("ALL");
+    setCurrentPage(1);
+  };
+
+  const openAddForm = () => {
+    setFormMode("add");
+    setSelectedUser(null);
+    setForm({ ...emptyForm });
+    setFormError("");
+  };
+
+  const openEditForm = (user) => {
+    setFormMode("edit");
+    setSelectedUser(user);
+    setForm({
+      ...emptyForm,
+      username: user.username || "",
+      email: user.email || "",
+      fullName: user.fullName || "",
+      gender: user.gender || "",
+      level: user.level || "",
+      goal: user.goal || "",
+      sessionsPerWeek: user.sessionsPerWeek ?? "",
+      status: getStatus(user) || "ACTIVE",
+    });
+    setFormError("");
+  };
+
+  const closeForm = () => {
+    if (!formLoading) setFormMode(null);
+  };
+  const updateForm = (field) => (event) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  const submitForm = async (event) => {
+    event.preventDefault();
+    if (formLoading) return;
+    setFormError("");
+    if (!form.username.trim() || !form.email.trim() || !form.fullName.trim()) {
+      setFormError("Vui lòng nhập username, email và họ tên.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+      setFormError("Email không hợp lệ.");
+      return;
+    }
+    if (formMode === "add" && !form.password) {
+      setFormError("Mật khẩu không được để trống.");
+      return;
+    }
+    if (
+      form.sessionsPerWeek !== "" &&
+      (Number(form.sessionsPerWeek) < 0 || Number(form.sessionsPerWeek) > 7)
+    ) {
+      setFormError("Số buổi tập mỗi tuần phải từ 0 đến 7.");
+      return;
+    }
+
+    setFormLoading(true);
+    const payload = {
+      ...form,
+      sessionsPerWeek:
+        form.sessionsPerWeek === "" ? null : Number(form.sessionsPerWeek),
+    };
+    if (formMode === "edit") delete payload.password;
+
+    try {
+      const response = await fetch(
+        formMode === "edit" ? `${API_URL}/${selectedUser.profileId}` : API_URL,
+        {
+          method: formMode === "edit" ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "Không thể lưu người dùng."),
+        );
+      }
+      await loadUsers();
+      setFormMode(null);
+      setNotice(
+        formMode === "edit"
+          ? "Cập nhật người dùng thành công."
+          : "Thêm người dùng thành công.",
+      );
+      window.setTimeout(() => setNotice(""), 3000);
+    } catch (requestError) {
+      setFormError(requestError.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const exportExcel = () => {
+    const rows = filteredUsers.map((user, index) => ({
+      STT: index + 1,
+      "Họ tên": user.fullName,
+      Username: user.username,
+      Email: user.email,
+      "Giới tính": user.gender,
+      "Trình độ": user.level,
+      "Mục tiêu": user.goal,
+      "Số buổi/tuần": user.sessionsPerWeek,
+      "Trạng thái": getStatus(user),
+      "Ngày tạo": user.createdAt,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Gym Users");
+    XLSX.writeFile(workbook, "gymforlife-users.xlsx");
+  };
+
   return (
     <div className="users-page">
       <div className="page-header-row">
         <div className="breadcrumbs">
-          <span>Home</span>
-          <span className="crumb-separator">›</span>
-          <span>Quản lý</span>
-          <span className="crumb-separator">›</span>
           <span className="current">Người dùng</span>
         </div>
-
         <div className="page-header-actions">
-          <button type="button" className="secondary-btn">
+          <button type="button" className="secondary-btn" onClick={exportExcel}>
             Xuất file Excel
           </button>
-          <button type="button" className="primary-btn">
+          <button type="button" className="primary-btn" onClick={openAddForm}>
             THÊM NGƯỜI DÙNG
           </button>
         </div>
@@ -127,244 +298,311 @@ function UsersPage() {
         <div>
           <h1>Quản lý người dùng</h1>
         </div>
-        <div className="title-badge">12,450 TỔNG</div>
       </div>
-
       <p className="page-description">
         Quản lý tài khoản, thể trạng và trạng thái hoạt động của người dùng
         GYMFORLIFE.
       </p>
 
-      <div className="stats-grid">
-        {stats.map((stat) => (
-          <div key={stat.label} className={`stat-card ${stat.accent || ""}`}>
-            <div className="stat-head">
-              <span className="stat-label">{stat.label}</span>
-              <span className="stat-icon">◌</span>
-            </div>
-            <div className="stat-main-row">
-              <div className="stat-value">{stat.value}</div>
-              {stat.delta && <div className="stat-delta">{stat.delta}</div>}
-            </div>
-            {stat.hint && <div className="stat-hint">{stat.hint}</div>}
-            {typeof stat.progress === "number" && (
-              <div className="mini-progress">
-                <span style={{ width: `${stat.progress}%` }} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
       <div className="user-controls">
         <div className="search-box">
           <span className="search-inline">⌕</span>
           <input
-            type="text"
+            value={searchTerm}
+            onChange={updateFilter(setSearchTerm)}
             placeholder="Tìm kiếm theo tên, email, ID..."
-            readOnly
           />
         </div>
-
-        <div className="filter-chip">TRÌNH ĐỘ: Intermediate</div>
-        <div className="filter-chip">TRẠNG THÁI: Tất cả</div>
-        <div className="filter-chip">TẦN SUẤT: Tất cả lịch</div>
-
+        <label className="filter-chip">
+          TRÌNH ĐỘ:
+          <select value={levelFilter} onChange={updateFilter(setLevelFilter)}>
+            <option value="ALL">Tất cả</option>
+            <option value="BEGINNER">BEGINNER</option>
+            <option value="INTERMEDIATE">INTERMEDIATE</option>
+            <option value="ADVANCED">ADVANCED</option>
+          </select>
+        </label>
+        <label className="filter-chip">
+          TRẠNG THÁI:
+          <select value={statusFilter} onChange={updateFilter(setStatusFilter)}>
+            <option value="ALL">Tất cả</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="filter-chip">
+          TẦN SUẤT:
+          <select
+            value={frequencyFilter}
+            onChange={updateFilter(setFrequencyFilter)}
+          >
+            {FREQUENCY_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="filter-tools">
-          <button type="button" className="icon-btn" aria-label="Reset">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Reset"
+            onClick={resetFilters}
+          >
             ↻
           </button>
-          <button type="button" className="icon-btn" aria-label="Filter">
-            ⎇
-          </button>
         </div>
       </div>
 
-      <div className="table-panel">
-        <div className="user-table-wrap">
-          <table className="user-table">
-            <thead>
+      <div className="user-table-wrap">
+        <table className="user-table">
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>NGƯỜI DÙNG</th>
+              <th>LIÊN HỆ</th>
+              <th>TRÌNH ĐỘ</th>
+              <th>TẦN SUẤT</th>
+              <th>TRẠNG THÁI</th>
+              <th>THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th className="stt-col">STT</th>
-                <th>HỘI VIÊN</th>
-                <th>LIÊN HỆ</th>
-                <th>TRÌNH ĐỘ</th>
-                <th>TRẠNG THÁI</th>
+                <td colSpan="7" className="user-empty-row">
+                  Đang tải danh sách người dùng...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {users.map((user, index) => (
-                <tr key={user.id} className={index === 0 ? "selected" : ""}>
-                  <td className="stt-cell">{index + 1}</td>
-                  <td className="member-cell">
-                    <div className="member-avatar">{user.avatar}</div>
-                    <div className="member-copy">
-                      <div className="name-line">{user.name}</div>
-                      <div className="role-line">{user.role}</div>
-                    </div>
-                  </td>
-                  <td className="contact-cell">
-                    <div className="contact-email">{user.email}</div>
-                    <div className="contact-phone">{user.phone}</div>
-                  </td>
-                  <td>
-                    <span
-                      className={`level-tag ${user.level === "Intermediate" ? "intermediate" : "regular"}`}
-                    >
-                      {user.level}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`status-tag ${user.status === "Tài khoản bị khóa" || user.status === "LOCKED" ? "locked" : "active"}`}
-                    >
-                      {user.status === "LOCKED"
-                        ? "Khóa"
-                        : user.status === "Tài khoản bị khóa"
-                          ? "Tài khoản bị khóa"
-                          : "Hoạt động"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <aside className="detail-panel">
-          <div className="detail-panel-header">
-            <span>HỒ SƠ CHI TIẾT</span>
-            <span className="panel-id">
-              #{selectedUser.id.replace("#", "")}
-            </span>
-          </div>
-
-          <div className="detail-top">
-            <div className="user-avatar-large">QA</div>
-            <div className="detail-user-main">
-              <div className="detail-name-row">
-                <h3>Quoc Anh</h3>
-                <span className="vip-tag">VIP PRO</span>
-              </div>
-              <div className="detail-email">quocanh.fit@gymforlife.app</div>
-              <div className="detail-role">Pro Athlete</div>
-              <div className="detail-meta">Gia nhập: 12/04/2024 (7 tháng)</div>
-            </div>
-          </div>
-
-          <div className="stats-detail-grid">
-            <div className="body-metric">
-              <span>CHIỀU CAO</span>
-              <strong>175 cm</strong>
-            </div>
-            <div className="body-metric">
-              <span>CÂN NẶNG</span>
-              <strong>67.0 kg</strong>
-            </div>
-            <div className="body-metric">
-              <span>BMI</span>
-              <strong>21.9</strong>
-            </div>
-            <div className="body-metric">
-              <span>MỤC TIÊU</span>
-              <strong>TĂNG CƠ</strong>
-            </div>
-          </div>
-
-          <div className="detail-section">
-            <div className="section-label-row">
-              <span>Lịch tập hiện tại</span>
-              <span className="progress-text">75% Tiến độ</span>
-            </div>
-            <div className="plan-name">Push Pull Legs Split (PPL)</div>
-            <div className="week-row">
-              <span>Tuần 4/8</span>
-            </div>
-            <div className="mini-progress dark">
-              <span style={{ width: "75%" }} />
-            </div>
-            <div className="session-meta">Đã hoàn thành 24/32 buổi</div>
-            <div className="weight-meta">Khối lượng: 185.4T</div>
-          </div>
-
-          <div className="detail-section">
-            <div className="section-title-row">
-              <span>KỶ LỤC CÁ NHÂN (PERSONAL RECORDS)</span>
-            </div>
-            <div className="pr-grid">
-              <div className="pr-item">
-                <div className="pr-name">Bench Press</div>
-                <div className="pr-value">60 kg</div>
-                <span className="pr-badge">PR 1RM</span>
-              </div>
-              <div className="pr-item">
-                <div className="pr-name">Squat</div>
-                <div className="pr-value">100 kg</div>
-                <span className="pr-badge">PR 1RM</span>
-              </div>
-              <div className="pr-item">
-                <div className="pr-name">Deadlift</div>
-                <div className="pr-value">120 kg</div>
-                <span className="pr-badge">PR 1RM</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="detail-section">
-            <div className="section-title-row">
-              <span>PHIÊN TẬP GẦN NHẤT</span>
-              <span>Hôm nay</span>
-            </div>
-            <div className="recent-workout-title">
-              Push Day - Chest & Triceps
-            </div>
-            <div className="recent-workout-stats">
-              <span>12.5 T</span>
-              <span>45 phút</span>
-            </div>
-            <div className="session-meta">6 bài tập • 18 sets hoàn thành</div>
-          </div>
-
-          <div className="detail-actions">
-            <button type="button" className="secondary-action">
-              Chỉnh sửa thông tin
-            </button>
-            <button type="button" className="secondary-action">
-              Đặt lại MK
-            </button>
-            <button type="button" className="danger-action">
-              Khóa tài khoản
-            </button>
-          </div>
-        </aside>
+            ) : error ? (
+              <tr>
+                <td colSpan="7" className="user-empty-row">
+                  {error}
+                </td>
+              </tr>
+            ) : pageUsers.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="user-empty-row">
+                  Không có người dùng phù hợp.
+                </td>
+              </tr>
+            ) : (
+              pageUsers.map((user, index) => {
+                const status = getStatus(user);
+                return (
+                  <tr key={user.profileId || user.accountId}>
+                    <td className="stt-cell">{startIndex + index + 1}</td>
+                    <td>
+                      <div className="member-cell">
+                        <div className="member-avatar">
+                          {getInitials(user.fullName)}
+                        </div>
+                        <div className="member-copy">
+                          <span className="name-line">
+                            {displayValue(user.fullName)}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="contact-cell">
+                        <span className="contact-email">
+                          {displayValue(user.email)}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        className={`level-tag ${String(user.level || "").toLowerCase()}`}
+                      >
+                        {displayValue(user.level)}
+                      </span>
+                    </td>
+                    <td>{displayValue(user.sessionsPerWeek)} buổi/tuần</td>
+                    <td>
+                      <span
+                        className={`status-tag ${String(status).toLowerCase()}`}
+                      >
+                        {displayValue(status)}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="action-icon-button"
+                        aria-label={`Sửa ${user.fullName}`}
+                        onClick={() => openEditForm(user)}
+                      >
+                        ✎
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
-      <div className="pagination-row">
-        <span>Hiển thị 1–10 của 12,450 người dùng</span>
-        <div className="pagination">
-          <button type="button" className="page-arrow">
-            ‹
-          </button>
-          <button type="button" className="page-number active">
-            1
-          </button>
-          <button type="button" className="page-number">
-            2
-          </button>
-          <button type="button" className="page-number">
-            3
-          </button>
-          <button type="button" className="page-number dots">
-            ...
-          </button>
-          <button type="button" className="page-number">
-            124
-          </button>
-          <button type="button" className="page-arrow">
-            ›
-          </button>
+      {!loading && !error && filteredUsers.length > 0 && (
+        <div className="pagination-row">
+          <span>
+            Hiển thị {startIndex + 1}-
+            {Math.min(startIndex + PAGE_SIZE, filteredUsers.length)} trên{" "}
+            {filteredUsers.length} người dùng
+          </span>
+          <div className="pagination">
+            <button
+              className="page-arrow"
+              disabled={page === 1}
+              onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+            >
+              ‹
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+              (number) => (
+                <button
+                  key={number}
+                  className={`page-number ${number === page ? "active" : ""}`}
+                  onClick={() => setCurrentPage(number)}
+                >
+                  {number}
+                </button>
+              ),
+            )}
+            <button
+              className="page-arrow"
+              disabled={page === totalPages}
+              onClick={() =>
+                setCurrentPage((value) => Math.min(totalPages, value + 1))
+              }
+            >
+              ›
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+      {notice && <div className="exercise-notice">{notice}</div>}
+
+      {formMode && (
+        <div className="user-modal-backdrop" onMouseDown={closeForm}>
+          <form
+            className="user-modal"
+            onSubmit={submitForm}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="exercise-modal-header">
+              <h2>
+                {formMode === "edit" ? "SỬA NGƯỜI DÙNG" : "THÊM NGƯỜI DÙNG"}
+              </h2>
+              <button
+                type="button"
+                className="exercise-modal-close"
+                onClick={closeForm}
+              >
+                ×
+              </button>
+            </div>
+            {formError && <p className="exercise-form-error">{formError}</p>}
+            <div className="user-form-grid">
+              <label className="user-form-field">
+                Username *
+                <input
+                  value={form.username}
+                  onChange={updateForm("username")}
+                />
+              </label>
+              <label className="user-form-field">
+                Email *
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={updateForm("email")}
+                />
+              </label>
+              {formMode === "add" && (
+                <label className="user-form-field">
+                  Mật khẩu *
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={updateForm("password")}
+                  />
+                </label>
+              )}
+              <label className="user-form-field">
+                Họ tên *
+                <input
+                  value={form.fullName}
+                  onChange={updateForm("fullName")}
+                />
+              </label>
+              <label className="user-form-field">
+                Giới tính
+                <select value={form.gender} onChange={updateForm("gender")}>
+                  <option value="">Chọn giới tính</option>
+                  <option value="MALE">Nam</option>
+                  <option value="FEMALE">Nữ</option>
+                  <option value="OTHER">Khác</option>
+                </select>
+              </label>
+              <label className="user-form-field">
+                Trình độ
+                <select value={form.level} onChange={updateForm("level")}>
+                  <option value="">Chọn trình độ</option>
+                  <option value="BEGINNER">BEGINNER</option>
+                  <option value="INTERMEDIATE">INTERMEDIATE</option>
+                  <option value="ADVANCED">ADVANCED</option>
+                </select>
+              </label>
+              <label className="user-form-field">
+                Mục tiêu
+                <input value={form.goal} onChange={updateForm("goal")} />
+              </label>
+              <label className="user-form-field">
+                Số buổi/tuần
+                <input
+                  type="number"
+                  min="0"
+                  max="7"
+                  value={form.sessionsPerWeek}
+                  onChange={updateForm("sessionsPerWeek")}
+                />
+              </label>
+              {formMode === "edit" && (
+                <label className="user-form-field">
+                  Trạng thái
+                  <select value={form.status} onChange={updateForm("status")}>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="LOCKED">LOCKED</option>
+                  </select>
+                </label>
+              )}
+            </div>
+            <div className="exercise-modal-actions">
+              <button
+                type="button"
+                className="exercise-cancel-button"
+                onClick={closeForm}
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="exercise-save-button"
+                disabled={formLoading}
+              >
+                {formLoading ? "Đang lưu..." : "Lưu người dùng"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

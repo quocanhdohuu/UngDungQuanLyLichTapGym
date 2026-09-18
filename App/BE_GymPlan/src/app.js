@@ -68,6 +68,7 @@ app.use("/exercises", exercisesRouter);
 app.use("/api/exercises", exercisesRouter);
 app.use("/exercisesets", exercisesetsRouter);
 app.use("/gymusers", gymusersRouter);
+app.use("/api/users", gymusersRouter);
 app.use("/gymuserworkoutplans", gymuserworkoutplansRouter);
 app.use("/loginsessions", loginsessionsRouter);
 app.use("/musclegroups", musclegroupsRouter);

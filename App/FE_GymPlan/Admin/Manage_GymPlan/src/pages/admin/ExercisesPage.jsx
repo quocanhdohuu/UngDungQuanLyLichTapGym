@@ -113,6 +113,18 @@ const ExercisesPage = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [selectedMedia, setSelectedMedia] = useState(null);
+
+  useEffect(() => {
+    if (!selectedMedia) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSelectedMedia(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedMedia]);
 
   const loadExercises = async () => {
     const response = await fetch(EXERCISES_API_URL);
@@ -545,10 +557,6 @@ const ExercisesPage = () => {
       <div className="exercise-page-header">
         <div>
           <div className="exercise-breadcrumbs">
-            <span>Home</span>
-            <span>/</span>
-            <span>Thư viện</span>
-            <span>/</span>
             <strong>Quản lý bài tập</strong>
           </div>
           <h1>QUẢN LÝ BÀI TẬP</h1>
@@ -674,7 +682,6 @@ const ExercisesPage = () => {
                       <td>{renderPreview(exercise)}</td>
                       <td className="exercise-name-cell">
                         <strong>{exercise.name}</strong>
-                        <span>{exercise.description}</span>
                       </td>
                       <td className="exercise-description-cell">
                         {exercise.description || "-"}
@@ -704,9 +711,6 @@ const ExercisesPage = () => {
                       </td>
                       <td>
                         <div className="exercise-actions">
-                          <button type="button" aria-label="Xem">
-                            <ExerciseIcon name="eye" />
-                          </button>
                           <button
                             type="button"
                             aria-label="Chỉnh sửa"
@@ -972,11 +976,22 @@ const ExercisesPage = () => {
                         className="exercise-media-item"
                         key={`${item.publicId}-${item.sortOrder}`}
                       >
-                        {item.mediaType === "VIDEO" ? (
-                          <video src={item.mediaUrl} muted preload="metadata" />
-                        ) : (
-                          <img src={item.mediaUrl} alt="Media bài tập" />
-                        )}
+                        <button
+                          type="button"
+                          className="exercise-media-thumbnail"
+                          onClick={() => setSelectedMedia(item)}
+                          aria-label="Xem media bài tập"
+                        >
+                          {item.mediaType === "VIDEO" ? (
+                            <video
+                              src={item.mediaUrl}
+                              muted
+                              preload="metadata"
+                            />
+                          ) : (
+                            <img src={item.mediaUrl} alt="Media bài tập" />
+                          )}
+                        </button>
                         <span>
                           {item.mediaType} {item.mediaUrl.split("/").pop()}
                         </span>
@@ -1006,6 +1021,46 @@ const ExercisesPage = () => {
               </>
             )}
           </form>
+        </div>
+      )}
+
+      {selectedMedia && (
+        <div
+          className="exercise-media-preview-backdrop"
+          role="presentation"
+          onMouseDown={() => setSelectedMedia(null)}
+        >
+          <div
+            className="exercise-media-preview"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xem media bài tập"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="exercise-media-preview-close"
+              onClick={() => setSelectedMedia(null)}
+              aria-label="Đóng xem media"
+            >
+              ×
+            </button>
+            {selectedMedia.mediaType === "VIDEO" ? (
+              <video
+                className="exercise-media-preview-content"
+                src={selectedMedia.mediaUrl}
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <img
+                className="exercise-media-preview-content"
+                src={selectedMedia.mediaUrl}
+                alt="Media bài tập"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

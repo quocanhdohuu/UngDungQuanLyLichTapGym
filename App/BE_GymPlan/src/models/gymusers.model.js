@@ -12,52 +12,75 @@ const Gymusers = (gymusers) => {
 };
 
 Gymusers.getById = (profileId, callback) => {
-  const sqlString = "SELECT * FROM `gymusers` WHERE `profileId` = ?";
-  db.query(sqlString, [profileId], (err, result) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, result);
-  });
-};
-
-Gymusers.getAll = (callback) => {
-  const sqlString = "SELECT * FROM `gymusers`";
+  const sqlString = "CALL sp_GetAllGymUsers()";
   db.query(sqlString, (err, result) => {
     if (err) {
       return callback(err);
     }
-    callback(null, result);
+    callback(
+      null,
+      (result?.[0] || []).filter(
+        (item) => Number(item.profileId) === Number(profileId),
+      ),
+    );
+  });
+};
+
+Gymusers.getAll = (callback) => {
+  const sqlString = "CALL sp_GetAllGymUsers()";
+  db.query(sqlString, (err, result) => {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, Array.isArray(result) ? result[0] : result);
   });
 };
 
 Gymusers.insert = (gymusers, callback) => {
-  const sqlString = "INSERT INTO `gymusers` SET ?";
-  db.query(sqlString, gymusers, (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { profileId: res.insertId, ...gymusers });
-  });
+  const sqlString = "CALL sp_AddGymUser(?, ?, ?, ?, ?, ?, ?, ?)";
+  db.query(
+    sqlString,
+    [
+      gymusers.username,
+      gymusers.email,
+      gymusers.password,
+      gymusers.fullName,
+      gymusers.gender,
+      gymusers.level,
+      gymusers.goal,
+      gymusers.sessionsPerWeek,
+    ],
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, res?.[0]?.[0] || null);
+    },
+  );
 };
 
 Gymusers.update = (gymusers, profileId, callback) => {
-  const sqlString = "UPDATE `gymusers` SET ? WHERE `profileId` = ?";
-  db.query(sqlString, [gymusers, profileId], (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { message: "Cập nhật gymusers thành công" });
-  });
-};
-
-Gymusers.delete = (profileId, callback) => {
-  db.query("DELETE FROM `gymusers` WHERE `profileId` = ?", [profileId], (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { message: "Xóa gymusers thành công" });
-  });
+  const sqlString = "CALL sp_UpdateGymUser(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  db.query(
+    sqlString,
+    [
+      profileId,
+      gymusers.username,
+      gymusers.email,
+      gymusers.fullName,
+      gymusers.gender,
+      gymusers.level,
+      gymusers.goal,
+      gymusers.sessionsPerWeek,
+      gymusers.status,
+    ],
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, res?.[0]?.[0] || null);
+    },
+  );
 };
 
 module.exports = Gymusers;
