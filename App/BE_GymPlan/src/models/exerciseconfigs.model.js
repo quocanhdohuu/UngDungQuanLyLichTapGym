@@ -20,6 +20,42 @@ Exerciseconfigs.getById = (configId, callback) => {
   });
 };
 
+Exerciseconfigs.addWithProcedure = async (
+  dayId,
+  exerciseId,
+  sets,
+  reps,
+  restTime,
+) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_AddExerciseToWorkoutDay(?, ?, ?, ?, ?)", [
+      dayId,
+      exerciseId,
+      sets,
+      reps,
+      restTime,
+    ]);
+  return result[0]?.[0] || null;
+};
+
+Exerciseconfigs.updateWithProcedure = async (
+  configId,
+  sets,
+  reps,
+  restTime,
+) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_UpdateExerciseConfig(?, ?, ?, ?)", [
+      configId,
+      sets,
+      reps,
+      restTime,
+    ]);
+  return result[0]?.[0] || null;
+};
+
 Exerciseconfigs.getAll = (callback) => {
   const sqlString = "SELECT * FROM `exerciseconfigs`";
   db.query(sqlString, (err, result) => {
@@ -51,12 +87,16 @@ Exerciseconfigs.update = (exerciseconfigs, configId, callback) => {
 };
 
 Exerciseconfigs.delete = (configId, callback) => {
-  db.query("DELETE FROM `exerciseconfigs` WHERE `configId` = ?", [configId], (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { message: "Xóa exerciseconfigs thành công" });
-  });
+  db.query(
+    "DELETE FROM `exerciseconfigs` WHERE `configId` = ?",
+    [configId],
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, { message: "Xóa exerciseconfigs thành công" });
+    },
+  );
 };
 
 module.exports = Exerciseconfigs;

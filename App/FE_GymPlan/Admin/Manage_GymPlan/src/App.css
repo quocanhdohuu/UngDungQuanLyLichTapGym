@@ -2007,6 +2007,32 @@ button {
 .workout-filter-bar > button b {
   color: var(--text-muted);
 }
+.workout-filter-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: rgba(31, 37, 40, 0.9);
+  color: var(--text-muted);
+}
+.workout-filter-select svg {
+  color: var(--green);
+}
+.workout-filter-select select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+}
+.workout-filter-select option {
+  background: #1f2528;
+}
 .workout-builder-grid {
   display: grid;
   grid-template-columns: 172px minmax(0, 1fr);
@@ -2043,15 +2069,23 @@ button {
   color: var(--text-muted);
 }
 .workout-program-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: 0 8px 8px;
 }
 .workout-program {
+  display: block;
+  box-sizing: border-box;
   position: relative;
-  margin-top: 6px;
+  width: 100%;
+  height: 82px;
+  margin-top: 0;
   padding: 10px 9px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: rgba(35, 40, 43, 0.82);
+  text-align: left;
 }
 .workout-program.selected {
   border-color: rgba(133, 255, 31, 0.5);
@@ -2064,6 +2098,9 @@ button {
   gap: 4px;
 }
 .workout-program-top strong {
+  display: block;
+  min-width: 0;
+  min-height: 2.3em;
   color: #dce5e1;
   font-size: 0.7rem;
   line-height: 1.15;
@@ -2101,6 +2138,13 @@ button {
 .workout-detail-heading {
   color: var(--green);
   font-size: 0.59rem;
+}
+.workout-icon-button {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
 }
 .workout-detail h2 {
   margin: 12px 0 3px;
@@ -2356,6 +2400,31 @@ button {
   background: rgba(28, 39, 32, 0.8);
   color: var(--green);
   font-size: 0.6rem;
+}
+.workout-empty,
+.workout-error,
+.workout-form-error {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+.workout-empty {
+  padding: 14px 11px;
+}
+.workout-error,
+.workout-form-error {
+  margin: 8px 0;
+  color: #ff9f8f;
+}
+.workout-day-header .workout-row-actions,
+.workout-exercise-row .workout-row-actions {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.workout-day-header .workout-row-actions {
+  margin-left: 8px;
 }
 .workout-day-card.collapsed .workout-day-header {
   border-bottom: 0;

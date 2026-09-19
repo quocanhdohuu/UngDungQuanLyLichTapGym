@@ -17,6 +17,20 @@ Workoutdays.getById = (dayId, callback) => {
   });
 };
 
+Workoutdays.addWithProcedure = async (planId, dayName) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_AddWorkoutDay(?, ?)", [planId, dayName]);
+  return result[0]?.[0] || null;
+};
+
+Workoutdays.updateWithProcedure = async (dayId, dayName) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_UpdateWorkoutDay(?, ?)", [dayId, dayName]);
+  return result[0]?.[0] || null;
+};
+
 Workoutdays.getAll = (callback) => {
   const sqlString = "SELECT * FROM `workoutdays`";
   db.query(sqlString, (err, result) => {
@@ -48,12 +62,16 @@ Workoutdays.update = (workoutdays, dayId, callback) => {
 };
 
 Workoutdays.delete = (dayId, callback) => {
-  db.query("DELETE FROM `workoutdays` WHERE `dayId` = ?", [dayId], (err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    callback(null, { message: "Xóa workoutdays thành công" });
-  });
+  db.query(
+    "DELETE FROM `workoutdays` WHERE `dayId` = ?",
+    [dayId],
+    (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, { message: "Xóa workoutdays thành công" });
+    },
+  );
 };
 
 module.exports = Workoutdays;

@@ -1,5 +1,6 @@
 const Gymusers = require("../models/gymusers.model");
-const bcrypt = require("bcryptjs");
+
+const DEFAULT_USER_PASSWORD = "123456";
 
 const GymusersController = {
   getAll: (req, res) => {
@@ -38,7 +39,9 @@ const GymusersController = {
   create: (req, res) => {
     const data = { ...req.body };
 
-    if (!data.username || !data.email || !data.password || !data.fullName) {
+    data.password = data.password || DEFAULT_USER_PASSWORD;
+
+    if (!data.username || !data.email || !data.fullName) {
       return res
         .status(400)
         .json({ message: "Vui lòng nhập đầy đủ thông tin bắt buộc" });
@@ -56,8 +59,6 @@ const GymusersController = {
         .status(400)
         .json({ message: "Số buổi tập mỗi tuần phải từ 0 đến 7" });
     }
-
-    data.password = bcrypt.hashSync(data.password, 12);
 
     Gymusers.insert(data, (err, result) => {
       if (err) {

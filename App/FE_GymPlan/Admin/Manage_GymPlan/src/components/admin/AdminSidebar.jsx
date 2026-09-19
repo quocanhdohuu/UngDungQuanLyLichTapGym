@@ -5,7 +5,7 @@ const navItems = [
   { to: "/admin/dashboard", label: "Dashboard", icon: "dashboard" },
   { to: "/admin/users", label: "Người dùng", icon: "users" },
   { to: "/admin/exercises", label: "Bài tập", icon: "exercise" },
-  { to: "/admin/workout-templates", label: "Lịch tập mẫu", icon: "calendar" },
+  { to: "/admin/workout-templates", label: "Lịch tập", icon: "calendar" },
   { to: "/admin/settings", label: "Cấu hình hệ thống", icon: "settings" },
 ];
 

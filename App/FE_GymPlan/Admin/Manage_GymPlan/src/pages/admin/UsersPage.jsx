@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 
 const API_URL = "http://localhost:3000/api/users";
 const PAGE_SIZE = 5;
+const DEFAULT_USER_PASSWORD = "123456";
 const FREQUENCY_OPTIONS = [
   { value: "ALL", label: "Tất cả lịch" },
   { value: "1-2", label: "1-2 buổi/tuần" },
@@ -171,7 +172,7 @@ function UsersPage() {
   const openAddForm = () => {
     setFormMode("add");
     setSelectedUser(null);
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, password: DEFAULT_USER_PASSWORD });
     setFormError("");
   };
 
