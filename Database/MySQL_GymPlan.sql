@@ -2715,3 +2715,345 @@ END $$
 
 DELIMITER ;
 
+-- 18. Xoá bài tập khỏi ngày tập --
+DELIMITER $$
+
+CREATE PROCEDURE sp_RemoveExerciseFromWorkoutDay(
+    IN p_configId INT
+)
+BEGIN
+    DECLARE v_dayId INT;
+
+    -- ============================================
+    -- 1. Kiểm tra ExerciseConfig có tồn tại không
+    -- ============================================
+    IF NOT EXISTS (
+        SELECT 1
+        FROM ExerciseConfigs
+        WHERE configId = p_configId
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Bài tập không tồn tại trong ngày tập';
+    END IF;
+
+
+    -- ============================================
+    -- 2. Lấy dayId trước khi xóa
+    -- ============================================
+    SELECT dayId
+    INTO v_dayId
+    FROM ExerciseConfigs
+    WHERE configId = p_configId;
+
+
+    -- ============================================
+    -- 3. Xóa bài tập khỏi ngày tập
+    -- ============================================
+    DELETE FROM ExerciseConfigs
+    WHERE configId = p_configId;
+
+
+    -- ============================================
+    -- 4. Đánh lại thứ tự bài tập
+    -- ============================================
+    SET @exerciseOrder := 0;
+
+    UPDATE ExerciseConfigs
+    SET `order` = (@exerciseOrder := @exerciseOrder + 1)
+    WHERE dayId = v_dayId
+    ORDER BY `order`;
+
+
+    -- ============================================
+    -- 5. Trả kết quả
+    -- ============================================
+    SELECT
+        p_configId AS deletedConfigId,
+        v_dayId AS dayId,
+        'Xóa bài tập khỏi ngày tập thành công' AS message;
+
+END $$
+
+DELIMITER ;
+
+CALL sp_RemoveExerciseFromWorkoutDay(1);
+
+
+-- 19. Xoá ngày tập khỏi lịch tập --
+DELIMITER $$
+
+CREATE PROCEDURE sp_DeleteWorkoutDay(
+    IN p_dayId INT
+)
+BEGIN
+    DECLARE v_planId INT;
+
+    -- ============================================
+    -- 1. Kiểm tra ngày tập tồn tại
+    -- ============================================
+    IF NOT EXISTS (
+        SELECT 1
+        FROM WorkoutDays
+        WHERE dayId = p_dayId
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ngày tập không tồn tại';
+    END IF;
+
+
+    -- ============================================
+    -- 2. Lấy planId trước khi xóa
+    -- ============================================
+    SELECT planId
+    INTO v_planId
+    FROM WorkoutDays
+    WHERE dayId = p_dayId;
+
+
+    -- ============================================
+    -- 3. Xóa WorkoutDay
+    -- ============================================
+    DELETE FROM WorkoutDays
+    WHERE dayId = p_dayId;
+
+    /*
+        ExerciseConfigs thuộc ngày này sẽ tự động
+        bị xóa do FK:
+
+        FOREIGN KEY (dayId)
+        REFERENCES WorkoutDays(dayId)
+        ON DELETE CASCADE
+    */
+
+
+    -- ============================================
+    -- 4. Đánh lại thứ tự DAY
+    -- ============================================
+    SET @dayOrder := 0;
+
+    UPDATE WorkoutDays
+    SET `order` = (@dayOrder := @dayOrder + 1)
+    WHERE planId = v_planId
+    ORDER BY `order`;
+
+
+    -- ============================================
+    -- 5. Trả kết quả
+    -- ============================================
+    SELECT
+        p_dayId AS deletedDayId,
+        v_planId AS planId,
+        'Xóa ngày tập thành công' AS message;
+
+END $$
+
+DELIMITER ;
+CALL sp_DeleteWorkoutDay(5);
+
+-- 20. Load API tổng quan --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardSummary()
+BEGIN
+    SELECT
+        (
+            SELECT COUNT(*)
+            FROM gymusers
+        ) AS totalUsers,
+
+        (
+            SELECT COUNT(*)
+            FROM exercises
+        ) AS totalExercises,
+
+        (
+            SELECT COUNT(*)
+            FROM workoutplans
+            WHERE isTemplate = 1
+        ) AS totalWorkoutTemplates,
+
+        (
+            SELECT COUNT(*)
+            FROM accounts a
+            INNER JOIN gymusers gu
+                ON gu.accountId = a.accountId
+            WHERE YEAR(a.createdAt) = YEAR(CURRENT_DATE())
+              AND MONTH(a.createdAt) = MONTH(CURRENT_DATE())
+        ) AS newUsersThisMonth,
+
+        (
+            SELECT COUNT(*)
+            FROM workoutsessions
+            WHERE YEAR(startTime) = YEAR(CURRENT_DATE())
+              AND MONTH(startTime) = MONTH(CURRENT_DATE())
+        ) AS workoutSessionsThisMonth;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardSummary();
+
+-- 21. User đăng ký theo tháng --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardUserGrowth(
+    IN p_months INT
+)
+BEGIN
+    IF p_months IS NULL OR p_months <= 0 THEN
+        SET p_months = 6;
+    END IF;
+
+    SELECT
+        DATE_FORMAT(a.createdAt, '%Y-%m') AS monthKey,
+        DATE_FORMAT(a.createdAt, '%m/%Y') AS monthLabel,
+        COUNT(*) AS totalUsers
+    FROM accounts a
+    INNER JOIN gymusers gu
+        ON gu.accountId = a.accountId
+    WHERE a.createdAt >= DATE_SUB(
+        DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01'),
+        INTERVAL (p_months - 1) MONTH
+    )
+    GROUP BY
+        DATE_FORMAT(a.createdAt, '%Y-%m'),
+        DATE_FORMAT(a.createdAt, '%m/%Y')
+    ORDER BY monthKey ASC;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardUserGrowth(9);
+
+-- 22. Thống kê bài tập theo độ khó --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardExerciseStatistics()
+BEGIN
+    SELECT
+        difficulty,
+        COUNT(*) AS totalExercises,
+        ROUND(
+            COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM exercises), 0),
+            2
+        ) AS percentage
+    FROM exercises
+    GROUP BY difficulty
+    ORDER BY
+        CASE difficulty
+            WHEN 'EASY' THEN 1
+            WHEN 'MEDIUM' THEN 2
+            WHEN 'HARD' THEN 3
+            ELSE 4
+        END;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardExerciseStatistics();
+
+-- 23. Bài tập theo nhóm cơ --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardExercisesByMuscleGroup()
+BEGIN
+    SELECT
+        mg.groupId,
+        mg.groupName,
+        COUNT(DISTINCT emg.exerciseId) AS totalExercises
+    FROM musclegroups mg
+
+    LEFT JOIN exercisemusclegroups emg
+        ON emg.groupId = mg.groupId
+        AND emg.role = 'PRIMARY'
+
+    GROUP BY
+        mg.groupId,
+        mg.groupName
+
+    ORDER BY
+        totalExercises DESC,
+        mg.groupName ASC;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardExercisesByMuscleGroup();
+
+-- 24. Load người dùng mới --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardRecentUsers(
+    IN p_limit INT
+)
+BEGIN
+    IF p_limit IS NULL OR p_limit <= 0 THEN
+        SET p_limit = 5;
+    END IF;
+
+    SELECT
+        gu.profileId,
+        a.accountId,
+        gu.fullName,
+        a.username,
+        a.email,
+        gu.gender,
+        gu.level,
+        a.status AS accountStatus,
+        a.createdAt
+    FROM gymusers gu
+
+    INNER JOIN accounts a
+        ON a.accountId = gu.accountId
+
+    ORDER BY a.createdAt DESC
+    LIMIT p_limit;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardRecentUsers(9);
+
+-- 25. Lịch tập mẫu gần đây --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetDashboardRecentWorkoutTemplates(
+    IN p_limit INT
+)
+BEGIN
+    IF p_limit IS NULL OR p_limit <= 0 THEN
+        SET p_limit = 5;
+    END IF;
+
+    SELECT
+        wp.planId,
+        wp.title,
+        wp.description,
+        wp.level,
+        wp.creatorId,
+        wp.createdAt,
+
+        COUNT(DISTINCT wd.dayId) AS totalDays,
+
+        COUNT(ec.configId) AS totalExercises
+
+    FROM workoutplans wp
+
+    LEFT JOIN workoutdays wd
+        ON wd.planId = wp.planId
+
+    LEFT JOIN exerciseconfigs ec
+        ON ec.dayId = wd.dayId
+
+    WHERE wp.isTemplate = 1
+
+    GROUP BY
+        wp.planId,
+        wp.title,
+        wp.description,
+        wp.level,
+        wp.creatorId,
+        wp.createdAt
+
+    ORDER BY wp.createdAt DESC
+
+    LIMIT p_limit;
+END $$
+
+DELIMITER ;
+CALL sp_GetDashboardRecentWorkoutTemplates(2);

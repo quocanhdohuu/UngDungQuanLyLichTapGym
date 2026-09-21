@@ -1,3 +1,9 @@
+import {
+  AdminIcon,
+  AdminSearchInput,
+  AdminFilterSelect,
+} from "../../components/admin/AdminControls";
+import AdminPageHeader from "../../components/admin/AdminPageHeader";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 5;
@@ -58,43 +64,6 @@ const getMediaType = (url) => {
 
   return "image";
 };
-
-function ExerciseIcon({ name }) {
-  const props = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.8",
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": "true",
-  };
-
-  if (name === "eye") {
-    return (
-      <svg {...props}>
-        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
-        <circle cx="12" cy="12" r="2.5" />
-      </svg>
-    );
-  }
-
-  if (name === "edit") {
-    return (
-      <svg {...props}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...props}>
-      <path d="M5 9.5h14" />
-      <path d="M7 6.5v6M17 6.5v6M8 12.5v6m8-6v6M8 17h8" />
-    </svg>
-  );
-}
 
 const ExercisesPage = () => {
   const [exercises, setExercises] = useState([]);
@@ -553,89 +522,81 @@ const ExercisesPage = () => {
   const shownEnd = Math.min(startIndex + PAGE_SIZE, filteredExercises.length);
 
   return (
-    <div className="exercises-page">
-      <div className="exercise-page-header">
-        <div>
-          <div className="exercise-breadcrumbs">
-            <strong>Quản lý bài tập</strong>
-          </div>
-          <h1>QUẢN LÝ BÀI TẬP</h1>
-          <p>
-            Kho bài tập chuẩn khoa học, video hướng dẫn và phân loại nhóm cơ của
-            GYMFORLIFE.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="exercise-add-button"
-          onClick={openAddForm}
-        >
-          + THÊM BÀI TẬP MỚI
-        </button>
-      </div>
+    <div className="admin-page exercises-page">
+      <AdminPageHeader
+        eyebrow="Bài tập"
+        title="Quản lý bài tập"
+        description="Kho bài tập chuẩn khoa học, video hướng dẫn và phân loại nhóm cơ của GYMFORLIFE."
+        actions={
+          <button
+            type="button"
+            className="admin-button admin-button--primary"
+            onClick={openAddForm}
+          >
+            <AdminIcon name="plus" /> Thêm bài tập mới
+          </button>
+        }
+      />
 
-      <div className="exercise-filter-panel">
-        <label className="exercise-search">
-          <span>⌕</span>
-          <input
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="Tìm tên bài tập, nhóm cơ, thiết bị..."
-          />
-        </label>
+      <div className="admin-filter-bar">
+        <AdminSearchInput
+          value={searchTerm}
+          onChange={handleSearchChange}
+          placeholder="Tìm tên bài tập, nhóm cơ, thiết bị..."
+        />
 
-        <select
-          className="exercise-filter"
+        <AdminFilterSelect
+          label="Nhóm cơ"
           value={muscleFilter}
           onChange={handleMuscleChange}
         >
-          <option value="ALL">Nhóm cơ: Tất cả</option>
+          <option value="ALL">Tất cả</option>
           {muscleOptions.map((muscle) => (
             <option key={muscle} value={muscle}>
               {muscle}
             </option>
           ))}
-        </select>
+        </AdminFilterSelect>
 
-        <select
-          className="exercise-filter"
+        <AdminFilterSelect
+          label="Thiết bị"
           value={equipmentFilter}
           onChange={handleEquipmentChange}
         >
-          <option value="ALL">Thiết bị: Tất cả</option>
+          <option value="ALL">Tất cả</option>
           {equipmentOptions.map((item) => (
             <option key={item} value={item}>
               {item}
             </option>
           ))}
-        </select>
+        </AdminFilterSelect>
 
-        <select
-          className="exercise-filter"
+        <AdminFilterSelect
+          label="Độ khó"
           value={difficultyFilter}
           onChange={handleDifficultyChange}
         >
-          <option value="ALL">Độ khó: Tất cả</option>
+          <option value="ALL">Tất cả</option>
           {difficultyOptions.map((item) => (
             <option key={item} value={item}>
               {getDifficultyLabel(item)}
             </option>
           ))}
-        </select>
+        </AdminFilterSelect>
 
         <button
           type="button"
-          className="exercise-refresh"
+          className="admin-button admin-button--icon"
           onClick={handleResetFilters}
           aria-label="Làm mới"
         >
-          ↻
+          <AdminIcon name="refresh" />
         </button>
       </div>
 
-      <div className="exercise-table-panel">
+      <div className="admin-card exercise-table-panel">
         <div className="exercise-table-scroll">
-          <table className="exercise-table">
+          <table className="admin-table exercise-table">
             <thead>
               <tr>
                 <th>STT</th>
@@ -652,19 +613,19 @@ const ExercisesPage = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="exercise-empty-row">
+                  <td colSpan="9" className="admin-empty">
                     Đang tải danh sách bài tập...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan="9" className="exercise-empty-row">
+                  <td colSpan="9" className="admin-empty">
                     {error}
                   </td>
                 </tr>
               ) : paginatedExercises.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="exercise-empty-row">
+                  <td colSpan="9" className="admin-empty">
                     Không tìm thấy bài tập phù hợp.
                   </td>
                 </tr>
@@ -687,7 +648,7 @@ const ExercisesPage = () => {
                         {exercise.description || "-"}
                       </td>
                       <td>
-                        <span className="muscle-tag">
+                        <span className="admin-badge admin-badge--success">
                           {splitValues(exercise.primaryMuscles)[0] || "-"}
                         </span>
                       </td>
@@ -700,7 +661,7 @@ const ExercisesPage = () => {
                       </td>
                       <td>
                         <span
-                          className={`difficulty-tag ${String(
+                          className={`admin-badge difficulty-tag ${String(
                             exercise.difficulty || "",
                           )
                             .trim()
@@ -713,10 +674,11 @@ const ExercisesPage = () => {
                         <div className="exercise-actions">
                           <button
                             type="button"
+                            className="admin-button admin-button--icon"
                             aria-label="Chỉnh sửa"
                             onClick={() => openEditForm(exercise.exerciseId)}
                           >
-                            <ExerciseIcon name="edit" />
+                            <AdminIcon name="edit" />
                           </button>
                         </div>
                       </td>
@@ -774,34 +736,34 @@ const ExercisesPage = () => {
 
       {formMode && (
         <div
-          className="exercise-modal-backdrop"
+          className="admin-modal-backdrop"
           role="presentation"
           onMouseDown={closeForm}
         >
           <form
-            className="exercise-modal"
+            className="admin-modal"
             onSubmit={submitForm}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="exercise-modal-header">
+            <div className="admin-modal-header">
               <h2>
-                {formMode === "edit" ? "CHỈNH SỬA BÀI TẬP" : "THÊM BÀI TẬP"}
+                {formMode === "edit" ? "Chỉnh sửa bài tập" : "Thêm bài tập"}
               </h2>
               <button
                 type="button"
-                className="exercise-modal-close"
+                className="admin-button admin-button--icon"
                 onClick={closeForm}
                 aria-label="Đóng"
               >
-                ×
+                <AdminIcon name="close" />
               </button>
             </div>
-            {formError && <p className="exercise-form-error">{formError}</p>}
+            {formError && <p className="admin-form-error">{formError}</p>}
             {formLoading && formMode === "edit" ? (
-              <p className="exercise-form-loading">Đang tải dữ liệu...</p>
+              <p className="admin-empty">Đang tải dữ liệu...</p>
             ) : (
               <>
-                <label className="exercise-form-field">
+                <label className="admin-form-field">
                   Tên bài tập *
                   <input
                     value={form.name}
@@ -811,7 +773,7 @@ const ExercisesPage = () => {
                     required
                   />
                 </label>
-                <label className="exercise-form-field">
+                <label className="admin-form-field">
                   Mô tả
                   <textarea
                     value={form.description}
@@ -821,7 +783,7 @@ const ExercisesPage = () => {
                     rows="3"
                   />
                 </label>
-                <label className="exercise-form-field">
+                <label className="admin-form-field">
                   Độ khó
                   <select
                     value={form.difficulty}
@@ -836,8 +798,8 @@ const ExercisesPage = () => {
                     ))}
                   </select>
                 </label>
-                <div className="exercise-form-grid">
-                  <label className="exercise-form-field">
+                <div className="admin-form-grid">
+                  <label className="admin-form-field">
                     Cơ chính *
                     <select
                       multiple
@@ -853,7 +815,7 @@ const ExercisesPage = () => {
                       ))}
                     </select>
                   </label>
-                  <label className="exercise-form-field">
+                  <label className="admin-form-field">
                     Cơ phụ
                     <div className="exercise-choice-list">
                       {muscleGroups.map((item) => (
@@ -916,7 +878,7 @@ const ExercisesPage = () => {
                     </div>
                   </label>
                 </div>
-                <label className="exercise-form-field">
+                <label className="admin-form-field">
                   Thiết bị
                   <div className="exercise-choice-list equipment-choice-list">
                     {equipment.map((item) => (
@@ -961,7 +923,7 @@ const ExercisesPage = () => {
                     })}
                   </div>
                 </label>
-                <div className="exercise-form-field">
+                <div className="admin-form-field">
                   <span>Media</span>
                   <input
                     type="file"
@@ -995,24 +957,28 @@ const ExercisesPage = () => {
                         <span>
                           {item.mediaType} {item.mediaUrl.split("/").pop()}
                         </span>
-                        <button type="button" onClick={() => removeMedia(item)}>
+                        <button
+                          type="button"
+                          className="admin-button admin-button--danger"
+                          onClick={() => removeMedia(item)}
+                        >
                           Xóa
                         </button>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="exercise-modal-actions">
+                <div className="admin-modal-actions">
                   <button
                     type="button"
-                    className="exercise-cancel-button"
+                    className="admin-button admin-button--secondary"
                     onClick={closeForm}
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="exercise-save-button"
+                    className="admin-button admin-button--primary"
                     disabled={formLoading || mediaLoading}
                   >
                     {formLoading ? "Đang lưu..." : "Lưu bài tập"}
@@ -1039,11 +1005,11 @@ const ExercisesPage = () => {
           >
             <button
               type="button"
-              className="exercise-media-preview-close"
+              className="admin-button admin-button--icon exercise-media-preview-close"
               onClick={() => setSelectedMedia(null)}
               aria-label="Đóng xem media"
             >
-              ×
+              <AdminIcon name="close" />
             </button>
             {selectedMedia.mediaType === "VIDEO" ? (
               <video

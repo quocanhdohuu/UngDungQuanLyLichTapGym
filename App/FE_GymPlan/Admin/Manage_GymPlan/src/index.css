@@ -2,13 +2,7 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
   min-height: 100vh;
-}
-
-body {
-  background: #070d12;
-  font-family: Inter, "Segoe UI", sans-serif;
 }
 
 * {
@@ -22,16 +16,14 @@ svg {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 button {
   cursor: pointer;
-}
-
-input {
-  outline: none;
 }
 
 ul,

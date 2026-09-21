@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import logo from "../../image/logo.png";
 
 const navItems = [
-  { to: "/admin/dashboard", label: "Dashboard", icon: "dashboard" },
+  { to: "/admin/dashboard", label: "Trang chủ", icon: "dashboard" },
   { to: "/admin/users", label: "Người dùng", icon: "users" },
   { to: "/admin/exercises", label: "Bài tập", icon: "exercise" },
   { to: "/admin/workout-templates", label: "Lịch tập", icon: "calendar" },

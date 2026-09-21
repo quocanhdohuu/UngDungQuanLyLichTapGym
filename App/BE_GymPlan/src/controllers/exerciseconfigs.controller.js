@@ -32,12 +32,10 @@ const ExerciseconfigsController = {
         Number(req.body.reps),
         Number(req.body.restTime),
       );
-      return res
-        .status(201)
-        .json({
-          message: result?.message || "Thêm bài tập thành công",
-          data: result,
-        });
+      return res.status(201).json({
+        message: result?.message || "Thêm bài tập thành công",
+        data: result,
+      });
     } catch (error) {
       return res
         .status(500)
@@ -63,11 +61,9 @@ const ExerciseconfigsController = {
         data: result,
       });
     } catch (error) {
-      return res
-        .status(500)
-        .json({
-          message: getErrorMessage(error) || "Cập nhật cấu hình thất bại",
-        });
+      return res.status(500).json({
+        message: getErrorMessage(error) || "Cập nhật cấu hình thất bại",
+      });
     }
   },
 
@@ -141,22 +137,23 @@ const ExerciseconfigsController = {
     });
   },
 
-  delete: (req, res) => {
-    const id = req.params.configId;
+  delete: async (req, res) => {
+    if (!isPositiveId(req.params.configId))
+      return res.status(400).json({ message: "configId không hợp lệ" });
 
-    Exerciseconfigs.delete(id, (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Xóa thất bại",
-          error: err,
-        });
-      }
-
-      res.json({
-        message: "Xóa thành công",
+    try {
+      const result = await Exerciseconfigs.removeWithProcedure(
+        Number(req.params.configId),
+      );
+      return res.json({
+        message: result?.message || "Xóa bài tập khỏi ngày tập thành công",
         data: result,
       });
-    });
+    } catch (error) {
+      return res.status(500).json({
+        message: getErrorMessage(error) || "Xóa bài tập khỏi ngày tập thất bại",
+      });
+    }
   },
 };
 

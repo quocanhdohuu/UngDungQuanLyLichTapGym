@@ -56,6 +56,13 @@ Exerciseconfigs.updateWithProcedure = async (
   return result[0]?.[0] || null;
 };
 
+Exerciseconfigs.removeWithProcedure = async (configId) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_RemoveExerciseFromWorkoutDay(?)", [configId]);
+  return result[0]?.[0] || null;
+};
+
 Exerciseconfigs.getAll = (callback) => {
   const sqlString = "SELECT * FROM `exerciseconfigs`";
   db.query(sqlString, (err, result) => {

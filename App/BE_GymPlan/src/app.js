@@ -36,6 +36,7 @@ const adminsRouter = fs.existsSync(adminsRoutePath)
   ? require("./routes/admins.route")
   : null;
 const bodymetricsRouter = require("./routes/bodymetrics.route");
+const dashboardRouter = require("./routes/dashboard.route");
 const equipmentRouter = require("./routes/equipment.route");
 const exerciseconfigsRouter = require("./routes/exerciseconfigs.route");
 const exerciseequipmentRouter = require("./routes/exerciseequipment.route");
@@ -59,6 +60,7 @@ if (adminsRouter) {
   app.use("/admins", adminsRouter);
 }
 app.use("/bodymetrics", bodymetricsRouter);
+app.use("/api/dashboard", dashboardRouter);
 app.use("/equipment", equipmentRouter);
 app.use("/exerciseconfigs", exerciseconfigsRouter);
 app.use("/exerciseequipment", exerciseequipmentRouter);

@@ -1,3 +1,9 @@
+import {
+  AdminIcon,
+  AdminSearchInput,
+  AdminFilterSelect,
+} from "../../components/admin/AdminControls";
+import AdminPageHeader from "../../components/admin/AdminPageHeader";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -5,7 +11,7 @@ const API_URL = "http://localhost:3000/api/users";
 const PAGE_SIZE = 5;
 const DEFAULT_USER_PASSWORD = "123456";
 const FREQUENCY_OPTIONS = [
-  { value: "ALL", label: "Tất cả lịch" },
+  { value: "ALL", label: "Tất cả" },
   { value: "1-2", label: "1-2 buổi/tuần" },
   { value: "3-4", label: "3-4 buổi/tuần" },
   { value: "5-7", label: "5-7 buổi/tuần" },
@@ -280,87 +286,82 @@ function UsersPage() {
   };
 
   return (
-    <div className="users-page">
-      <div className="page-header-row">
-        <div className="breadcrumbs">
-          <span className="current">Người dùng</span>
-        </div>
-        <div className="page-header-actions">
-          <button type="button" className="secondary-btn" onClick={exportExcel}>
-            Xuất file Excel
-          </button>
-          <button type="button" className="primary-btn" onClick={openAddForm}>
-            THÊM NGƯỜI DÙNG
-          </button>
-        </div>
+    <div className="admin-page users-page">
+      <AdminPageHeader
+        eyebrow="Người dùng"
+        title="Quản lý người dùng"
+        description="Quản lý tài khoản, thể trạng và trạng thái hoạt động của người dùng GYMFORLIFE."
+        actions={
+          <>
+            <button
+              type="button"
+              className="admin-button admin-button--secondary"
+              onClick={exportExcel}
+            >
+              Xuất file Excel
+            </button>
+            <button
+              type="button"
+              className="admin-button admin-button--primary"
+              onClick={openAddForm}
+            >
+              <AdminIcon name="plus" /> Thêm người dùng
+            </button>
+          </>
+        }
+      />
+
+      <div className="admin-filter-bar">
+        <AdminSearchInput
+          value={searchTerm}
+          onChange={updateFilter(setSearchTerm)}
+          placeholder="Tìm kiếm theo tên, email, ID..."
+        />
+        <AdminFilterSelect
+          label="Trình độ"
+          value={levelFilter}
+          onChange={updateFilter(setLevelFilter)}
+        >
+          <option value="ALL">Tất cả</option>
+          <option value="BEGINNER">BEGINNER</option>
+          <option value="INTERMEDIATE">INTERMEDIATE</option>
+          <option value="ADVANCED">ADVANCED</option>
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label="Trạng thái"
+          value={statusFilter}
+          onChange={updateFilter(setStatusFilter)}
+        >
+          <option value="ALL">Tất cả</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label="Tần suất"
+          value={frequencyFilter}
+          onChange={updateFilter(setFrequencyFilter)}
+        >
+          {FREQUENCY_OPTIONS.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </AdminFilterSelect>
+        <button
+          type="button"
+          className="admin-button admin-button--icon"
+          aria-label="Reset"
+          onClick={resetFilters}
+        >
+          <AdminIcon name="refresh" />
+        </button>
       </div>
 
-      <div className="page-title-row">
-        <div>
-          <h1>Quản lý người dùng</h1>
-        </div>
-      </div>
-      <p className="page-description">
-        Quản lý tài khoản, thể trạng và trạng thái hoạt động của người dùng
-        GYMFORLIFE.
-      </p>
-
-      <div className="user-controls">
-        <div className="search-box">
-          <span className="search-inline">⌕</span>
-          <input
-            value={searchTerm}
-            onChange={updateFilter(setSearchTerm)}
-            placeholder="Tìm kiếm theo tên, email, ID..."
-          />
-        </div>
-        <label className="filter-chip">
-          TRÌNH ĐỘ:
-          <select value={levelFilter} onChange={updateFilter(setLevelFilter)}>
-            <option value="ALL">Tất cả</option>
-            <option value="BEGINNER">BEGINNER</option>
-            <option value="INTERMEDIATE">INTERMEDIATE</option>
-            <option value="ADVANCED">ADVANCED</option>
-          </select>
-        </label>
-        <label className="filter-chip">
-          TRẠNG THÁI:
-          <select value={statusFilter} onChange={updateFilter(setStatusFilter)}>
-            <option value="ALL">Tất cả</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-chip">
-          TẦN SUẤT:
-          <select
-            value={frequencyFilter}
-            onChange={updateFilter(setFrequencyFilter)}
-          >
-            {FREQUENCY_OPTIONS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="filter-tools">
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Reset"
-            onClick={resetFilters}
-          >
-            ↻
-          </button>
-        </div>
-      </div>
-
-      <div className="user-table-wrap">
-        <table className="user-table">
+      <div className="admin-card admin-table-wrap">
+        <table className="admin-table user-table">
           <thead>
             <tr>
               <th>STT</th>
@@ -375,19 +376,19 @@ function UsersPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="user-empty-row">
+                <td colSpan="7" className="admin-empty">
                   Đang tải danh sách người dùng...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan="7" className="user-empty-row">
+                <td colSpan="7" className="admin-empty">
                   {error}
                 </td>
               </tr>
             ) : pageUsers.length === 0 ? (
               <tr>
-                <td colSpan="7" className="user-empty-row">
+                <td colSpan="7" className="admin-empty">
                   Không có người dùng phù hợp.
                 </td>
               </tr>
@@ -418,7 +419,7 @@ function UsersPage() {
                     </td>
                     <td>
                       <span
-                        className={`level-tag ${String(user.level || "").toLowerCase()}`}
+                        className={`admin-badge level-tag ${String(user.level || "").toLowerCase()}`}
                       >
                         {displayValue(user.level)}
                       </span>
@@ -426,7 +427,7 @@ function UsersPage() {
                     <td>{displayValue(user.sessionsPerWeek)} buổi/tuần</td>
                     <td>
                       <span
-                        className={`status-tag ${String(status).toLowerCase()}`}
+                        className={`admin-badge status-tag ${String(status).toLowerCase()}`}
                       >
                         {displayValue(status)}
                       </span>
@@ -434,11 +435,11 @@ function UsersPage() {
                     <td>
                       <button
                         type="button"
-                        className="action-icon-button"
+                        className="admin-button admin-button--icon"
                         aria-label={`Sửa ${user.fullName}`}
                         onClick={() => openEditForm(user)}
                       >
-                        ✎
+                        <AdminIcon name="edit" />
                       </button>
                     </td>
                   </tr>
@@ -490,34 +491,35 @@ function UsersPage() {
       {notice && <div className="exercise-notice">{notice}</div>}
 
       {formMode && (
-        <div className="user-modal-backdrop" onMouseDown={closeForm}>
+        <div className="admin-modal-backdrop" onMouseDown={closeForm}>
           <form
-            className="user-modal"
+            className="admin-modal admin-modal--wide"
             onSubmit={submitForm}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="exercise-modal-header">
+            <div className="admin-modal-header">
               <h2>
-                {formMode === "edit" ? "SỬA NGƯỜI DÙNG" : "THÊM NGƯỜI DÙNG"}
+                {formMode === "edit" ? "Sửa người dùng" : "Thêm người dùng"}
               </h2>
               <button
                 type="button"
-                className="exercise-modal-close"
+                className="admin-button admin-button--icon"
+                aria-label="Đóng"
                 onClick={closeForm}
               >
-                ×
+                <AdminIcon name="close" />
               </button>
             </div>
-            {formError && <p className="exercise-form-error">{formError}</p>}
-            <div className="user-form-grid">
-              <label className="user-form-field">
+            {formError && <p className="admin-form-error">{formError}</p>}
+            <div className="admin-form-grid">
+              <label className="admin-form-field">
                 Username *
                 <input
                   value={form.username}
                   onChange={updateForm("username")}
                 />
               </label>
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Email *
                 <input
                   type="email"
@@ -526,7 +528,7 @@ function UsersPage() {
                 />
               </label>
               {formMode === "add" && (
-                <label className="user-form-field">
+                <label className="admin-form-field">
                   Mật khẩu *
                   <input
                     type="password"
@@ -535,14 +537,14 @@ function UsersPage() {
                   />
                 </label>
               )}
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Họ tên *
                 <input
                   value={form.fullName}
                   onChange={updateForm("fullName")}
                 />
               </label>
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Giới tính
                 <select value={form.gender} onChange={updateForm("gender")}>
                   <option value="">Chọn giới tính</option>
@@ -551,7 +553,7 @@ function UsersPage() {
                   <option value="OTHER">Khác</option>
                 </select>
               </label>
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Trình độ
                 <select value={form.level} onChange={updateForm("level")}>
                   <option value="">Chọn trình độ</option>
@@ -560,11 +562,11 @@ function UsersPage() {
                   <option value="ADVANCED">ADVANCED</option>
                 </select>
               </label>
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Mục tiêu
                 <input value={form.goal} onChange={updateForm("goal")} />
               </label>
-              <label className="user-form-field">
+              <label className="admin-form-field">
                 Số buổi/tuần
                 <input
                   type="number"
@@ -575,7 +577,7 @@ function UsersPage() {
                 />
               </label>
               {formMode === "edit" && (
-                <label className="user-form-field">
+                <label className="admin-form-field">
                   Trạng thái
                   <select value={form.status} onChange={updateForm("status")}>
                     <option value="ACTIVE">ACTIVE</option>
@@ -585,17 +587,17 @@ function UsersPage() {
                 </label>
               )}
             </div>
-            <div className="exercise-modal-actions">
+            <div className="admin-modal-actions">
               <button
                 type="button"
-                className="exercise-cancel-button"
+                className="admin-button admin-button--secondary"
                 onClick={closeForm}
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="exercise-save-button"
+                className="admin-button admin-button--primary"
                 disabled={formLoading}
               >
                 {formLoading ? "Đang lưu..." : "Lưu người dùng"}

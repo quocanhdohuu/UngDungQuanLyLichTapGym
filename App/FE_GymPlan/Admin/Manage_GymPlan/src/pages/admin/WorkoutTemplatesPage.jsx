@@ -1,3 +1,9 @@
+import {
+  AdminIcon,
+  AdminSearchInput,
+  AdminFilterSelect,
+} from "../../components/admin/AdminControls";
+import AdminPageHeader from "../../components/admin/AdminPageHeader";
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE_URL = "http://localhost:3000";
@@ -30,70 +36,22 @@ const request = async (path, options = {}) => {
   return response.json();
 };
 
-function WorkoutIcon({ type }) {
-  const props = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.8",
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": "true",
-  };
-  const paths = {
-    search: (
-      <>
-        <circle cx="10.5" cy="10.5" r="6" />
-        <path d="m16 16 4 4" />
-      </>
-    ),
-    filter: (
-      <>
-        <path d="M4 6h16M7 12h10M10 18h4" />
-      </>
-    ),
-    calendar: (
-      <>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M8 3v4M16 3v4M3 10h18" />
-      </>
-    ),
-    edit: (
-      <>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
-      </>
-    ),
-    plus: (
-      <>
-        <path d="M12 5v14M5 12h14" />
-      </>
-    ),
-    grip: (
-      <>
-        <path d="M8 7h.01M8 12h.01M8 17h.01M14 7h.01M14 12h.01M14 17h.01" />
-      </>
-    ),
-    chevron: <path d="m8 10 4 4 4-4" />,
-  };
-  return <svg {...props}>{paths[type] || paths.plus}</svg>;
-}
-
 function Modal({ title, children, onClose }) {
   return (
-    <div className="exercise-modal-backdrop" onMouseDown={onClose}>
+    <div className="admin-modal-backdrop" onMouseDown={onClose}>
       <div
-        className="exercise-modal"
+        className="admin-modal"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="exercise-modal-header">
+        <div className="admin-modal-header">
           <h2>{title}</h2>
           <button
             type="button"
-            className="exercise-modal-close"
+            className="admin-button admin-button--icon"
+            aria-label="Đóng"
             onClick={onClose}
           >
-            ×
+            <AdminIcon name="close" />
           </button>
         </div>
         {children}
@@ -102,34 +60,48 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-function DayCard({ day, onEditDay, onAddExercise, onEditExercise }) {
+function DayCard({
+  day,
+  onEditDay,
+  onDeleteDay,
+  onAddExercise,
+  onEditExercise,
+  onDeleteExercise,
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const exercises = [...(day.exercises || [])].sort(
     (a, b) => Number(a.exerciseOrder) - Number(b.exerciseOrder),
   );
   return (
-    <section className={`workout-day-card ${collapsed ? "collapsed" : ""}`}>
+    <section className={`admin-card admin-card--flush workout-day-card ${collapsed ? "collapsed" : ""}`}>
       <div className="workout-day-header">
         <span className="workout-grip">
-          <WorkoutIcon type="grip" />
+          <AdminIcon name="grip" />
         </span>
-        <span className="workout-day-number">DAY {day.dayOrder}</span>
+        <span className="admin-badge admin-badge--primary">DAY {day.dayOrder}</span>
         <strong>{day.dayName}</strong>
         <span className="workout-day-meta">{exercises.length} bài tập</span>
         <button
           type="button"
-          className="workout-row-actions"
+          className="admin-button admin-button--ghost"
           onClick={() => onEditDay(day)}
         >
           Sửa
         </button>
         <button
           type="button"
-          className="workout-chevron"
+          className="admin-button admin-button--danger"
+          onClick={() => onDeleteDay(day)}
+        >
+          Xóa
+        </button>
+        <button
+          type="button"
+          className="admin-button admin-button--icon"
           aria-label="Thu gọn"
           onClick={() => setCollapsed((value) => !value)}
         >
-          <WorkoutIcon type="chevron" />
+          <AdminIcon name="chevron" />
         </button>
       </div>
       {!collapsed && (
@@ -138,7 +110,7 @@ function DayCard({ day, onEditDay, onAddExercise, onEditExercise }) {
             {exercises.map((exercise) => (
               <div className="workout-exercise-row" key={exercise.configId}>
                 <span className="workout-row-grip">
-                  <WorkoutIcon type="grip" />
+                  <AdminIcon name="grip" />
                 </span>
                 <span className="workout-thumb" />
                 <div className="workout-exercise-name">
@@ -150,25 +122,32 @@ function DayCard({ day, onEditDay, onAddExercise, onEditExercise }) {
                 </div>
                 <button
                   type="button"
-                  className="workout-row-actions"
+                  className="admin-button admin-button--ghost"
                   onClick={() => onEditExercise(exercise)}
                 >
                   Sửa
                 </button>
+                <button
+                  type="button"
+                  className="admin-button admin-button--danger"
+                  onClick={() => onDeleteExercise(exercise)}
+                >
+                  Xóa
+                </button>
               </div>
             ))}
             {exercises.length === 0 && (
-              <div className="workout-empty">
+              <div className="admin-empty">
                 Chưa có bài tập trong ngày này.
               </div>
             )}
           </div>
           <button
             type="button"
-            className="workout-add-exercise"
+            className="admin-button admin-button--secondary workout-add-exercise"
             onClick={() => onAddExercise(day)}
           >
-            <WorkoutIcon type="plus" /> Thêm bài tập vào DAY {day.dayOrder}
+            <AdminIcon name="plus" /> Thêm bài tập vào DAY {day.dayOrder}
           </button>
         </>
       )}
@@ -285,6 +264,32 @@ const WorkoutTemplatesPage = () => {
     setSaving(false);
   };
 
+  const handleDeleteExercise = async () => {
+    if (!form?.configId) return;
+    setSaving(true);
+    setFormError("");
+    try {
+      await request(`/exerciseconfigs/${form.configId}`, { method: "DELETE" });
+      await refreshCurrent("Đã xóa bài tập khỏi ngày tập.");
+    } catch (requestError) {
+      setFormError(requestError.message);
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteWorkoutDay = async () => {
+    if (!form?.dayId) return;
+    setSaving(true);
+    setFormError("");
+    try {
+      await request(`/workoutdays/${form.dayId}`, { method: "DELETE" });
+      await refreshCurrent("Đã xóa ngày tập.", true);
+    } catch (requestError) {
+      setFormError(requestError.message);
+      setSaving(false);
+    }
+  };
+
   const openPlanForm = (mode) => {
     setModal(mode);
     setForm(
@@ -357,7 +362,7 @@ const WorkoutTemplatesPage = () => {
     }
   };
   const formField = (label, key, type = "text") => (
-    <label className="exercise-form-field">
+    <label className="admin-form-field">
       {label}
       <input
         type={type}
@@ -369,78 +374,64 @@ const WorkoutTemplatesPage = () => {
   );
 
   return (
-    <div className="workout-page">
-      <div className="workout-page-header">
-        <div>
-          <div className="workout-breadcrumb">
-            <strong>QUẢN LÝ LỊCH TẬP</strong>
-          </div>
-          <h1>Quản lý lịch tập</h1>
-          <p>
-            Thiết kế, xây dựng và phân phối giáo án tập luyện chuẩn khoa học cho
-            hội viên GYMFORLIFE.
-          </p>
-        </div>
-        <div className="workout-header-actions">
+    <div className="admin-page workout-page">
+      <AdminPageHeader
+        eyebrow="Lịch tập"
+        title="Quản lý lịch tập"
+        description="Thiết kế, xây dựng và phân phối giáo án tập luyện chuẩn khoa học cho hội viên GYMFORLIFE."
+        actions={
           <button
             type="button"
-            className="workout-create"
+            className="admin-button admin-button--primary"
             onClick={() => openPlanForm("create")}
           >
-            <WorkoutIcon type="plus" /> TẠO CHƯƠNG TRÌNH MỚI
+            <AdminIcon name="plus" /> Tạo chương trình mới
           </button>
-        </div>
+        }
+      />
+      <div className="admin-filter-bar">
+        <AdminSearchInput
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Tìm giáo án theo tên, nhóm cơ, mục tiêu..."
+        />
+        <AdminFilterSelect
+          label="Trình độ"
+          value={levelFilter}
+          onChange={(event) => setLevelFilter(event.target.value)}
+        >
+          <option value="ALL">Tất cả</option>
+          {LEVELS.map((level) => (
+            <option key={level} value={level}>
+              {level}
+            </option>
+          ))}
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label="Số buổi"
+          value={daysFilter}
+          onChange={(event) => setDaysFilter(event.target.value)}
+        >
+          <option value="ALL">Tất cả</option>
+          <option value="1-2">1 - 2 buổi</option>
+          <option value="3-4">3 - 4 buổi</option>
+          <option value="5-6">5 - 6 buổi</option>
+          <option value="7">7 buổi</option>
+        </AdminFilterSelect>
       </div>
-      <div className="workout-filter-bar">
-        <label className="workout-search">
-          <WorkoutIcon type="search" />
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Tìm giáo án theo tên, nhóm cơ, mục tiêu..."
-          />
-        </label>
-        <label className="workout-filter-select">
-          <WorkoutIcon type="filter" />
-          <select
-            value={levelFilter}
-            onChange={(event) => setLevelFilter(event.target.value)}
-          >
-            <option value="ALL">Tất cả trình độ</option>
-            {LEVELS.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="workout-filter-select">
-          <WorkoutIcon type="calendar" />
-          <select
-            value={daysFilter}
-            onChange={(event) => setDaysFilter(event.target.value)}
-          >
-            <option value="ALL">Tất cả số buổi</option>
-            <option value="1-2">1 - 2 buổi</option>
-            <option value="3-4">3 - 4 buổi</option>
-            <option value="5-6">5 - 6 buổi</option>
-            <option value="7">7 buổi</option>
-          </select>
-        </label>
-      </div>
-      {error && <div className="workout-error">{error}</div>}
+      {error && <div className="admin-form-error">{error}</div>}
       <div className="workout-builder-grid">
         <div className="workout-left-column">
-          <section className="workout-library workout-card">
+          <section className="admin-card admin-card--flush workout-library">
             <div className="workout-card-title">
               <strong>THƯ VIỆN GIÁO ÁN MẪU ({filteredTemplates.length})</strong>
-              <WorkoutIcon type="filter" />
+              <AdminIcon name="filter" />
             </div>
             <div className="workout-program-list">
               {loading ? (
-                <div className="workout-empty">Đang tải giáo án...</div>
+                <div className="admin-empty">Đang tải giáo án...</div>
               ) : filteredTemplates.length === 0 ? (
-                <div className="workout-empty">Không có giáo án phù hợp.</div>
+                <div className="admin-empty">Không có giáo án phù hợp.</div>
               ) : (
                 filteredTemplates.map((template) => (
                   <button
@@ -455,7 +446,7 @@ const WorkoutTemplatesPage = () => {
                   >
                     <div className="workout-program-top">
                       <strong>{template.title}</strong>
-                      <span>{template.level}</span>
+                      <span className="admin-badge">{template.level}</span>
                     </div>
                     <small>{template.totalDays || 0} ngày tập</small>
                   </button>
@@ -464,15 +455,16 @@ const WorkoutTemplatesPage = () => {
             </div>
           </section>
           {planDetail && (
-            <section className="workout-detail workout-card">
+            <section className="admin-card workout-detail">
               <div className="workout-detail-heading">
                 <strong>CHI TIẾT GIÁO ÁN ĐANG SỬA</strong>
                 <button
                   type="button"
-                  className="workout-icon-button"
+                  className="admin-button admin-button--icon"
+                  aria-label="Sửa chương trình"
                   onClick={() => openPlanForm("edit")}
                 >
-                  <WorkoutIcon type="edit" />
+                  <AdminIcon name="edit" />
                 </button>
               </div>
               <h2>{planDetail.title}</h2>
@@ -491,7 +483,7 @@ const WorkoutTemplatesPage = () => {
           )}
         </div>
         <div className="workout-right-column">
-          <section className="workout-structure workout-card">
+          <section className="admin-card workout-structure">
             <div>
               <h2>Cấu trúc tuần tập luyện</h2>
               <p>Danh sách ngày tập và bài tập từ dữ liệu giáo án.</p>
@@ -501,7 +493,7 @@ const WorkoutTemplatesPage = () => {
             </span>
             <button
               type="button"
-              className="workout-add-day"
+              className="admin-button admin-button--secondary"
               disabled={!selectedPlanId}
               onClick={() => {
                 setModal("add-day");
@@ -509,13 +501,13 @@ const WorkoutTemplatesPage = () => {
                 setFormError("");
               }}
             >
-              <WorkoutIcon type="plus" /> Thêm ngày tập
+              <AdminIcon name="plus" /> Thêm ngày tập
             </button>
           </section>
           {detailLoading ? (
-            <div className="workout-empty">Đang tải chi tiết...</div>
+            <div className="admin-empty">Đang tải chi tiết...</div>
           ) : !planDetail ? (
-            <div className="workout-empty">
+            <div className="admin-empty">
               Chọn một giáo án để xem cấu trúc.
             </div>
           ) : planDetail.days?.length ? (
@@ -530,6 +522,11 @@ const WorkoutTemplatesPage = () => {
                     setForm(value);
                     setFormError("");
                   }}
+                  onDeleteDay={(value) => {
+                    setModal("delete-day");
+                    setForm(value);
+                    setFormError("");
+                  }}
                   onAddExercise={(value) => {
                     setModal("add-exercise");
                     setForm({ ...emptyExerciseForm, dayId: value.dayId });
@@ -540,10 +537,15 @@ const WorkoutTemplatesPage = () => {
                     setForm(value);
                     setFormError("");
                   }}
+                  onDeleteExercise={(value) => {
+                    setModal("delete-exercise");
+                    setForm(value);
+                    setFormError("");
+                  }}
                 />
               ))
           ) : (
-            <div className="workout-empty">Plan chưa có ngày tập.</div>
+            <div className="admin-empty">Plan chưa có ngày tập.</div>
           )}
         </div>
       </div>
@@ -558,7 +560,7 @@ const WorkoutTemplatesPage = () => {
           <form onSubmit={submitPlan}>
             {formField("Tên chương trình", "title")}
             {formField("Mô tả", "description")}
-            <label className="exercise-form-field">
+            <label className="admin-form-field">
               Trình độ
               <select
                 value={form.level}
@@ -569,7 +571,7 @@ const WorkoutTemplatesPage = () => {
                 ))}
               </select>
             </label>
-            <label className="exercise-form-field">
+            <label className="admin-form-field">
               <span>Giáo án mẫu</span>
               <input
                 type="checkbox"
@@ -579,12 +581,16 @@ const WorkoutTemplatesPage = () => {
                 }
               />
             </label>
-            {formError && <div className="workout-form-error">{formError}</div>}
-            <div className="exercise-modal-actions">
-              <button type="button" onClick={() => setModal(null)}>
+            {formError && <div className="admin-form-error">{formError}</div>}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-button admin-button--secondary"
+                onClick={() => setModal(null)}
+              >
                 Hủy
               </button>
-              <button type="submit" disabled={saving}>
+              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
@@ -613,7 +619,7 @@ const WorkoutTemplatesPage = () => {
                   )
             }
           >
-            <label className="exercise-form-field">
+            <label className="admin-form-field">
               Tên ngày tập
               <input
                 value={form.dayName || ""}
@@ -623,12 +629,16 @@ const WorkoutTemplatesPage = () => {
                 required
               />
             </label>
-            {formError && <div className="workout-form-error">{formError}</div>}
-            <div className="exercise-modal-actions">
-              <button type="button" onClick={() => setModal(null)}>
+            {formError && <div className="admin-form-error">{formError}</div>}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-button admin-button--secondary"
+                onClick={() => setModal(null)}
+              >
                 Hủy
               </button>
-              <button type="submit" disabled={saving}>
+              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
@@ -671,7 +681,7 @@ const WorkoutTemplatesPage = () => {
             }
           >
             {modal === "add-exercise" && (
-              <label className="exercise-form-field">
+              <label className="admin-form-field">
                 Bài tập
                 <select
                   value={form.exerciseId}
@@ -697,7 +707,7 @@ const WorkoutTemplatesPage = () => {
               ["Reps", "reps"],
               ["Rest Time (giây)", "restTime"],
             ].map(([label, key]) => (
-              <label className="exercise-form-field" key={key}>
+              <label className="admin-form-field" key={key}>
                 {label}
                 <input
                   type="number"
@@ -710,18 +720,77 @@ const WorkoutTemplatesPage = () => {
                 />
               </label>
             ))}
-            {formError && <div className="workout-form-error">{formError}</div>}
-            <div className="exercise-modal-actions">
-              <button type="button" onClick={() => setModal(null)}>
+            {formError && <div className="admin-form-error">{formError}</div>}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-button admin-button--secondary"
+                onClick={() => setModal(null)}
+              >
                 Hủy
               </button>
-              <button type="submit" disabled={saving}>
+              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
           </form>
         </Modal>
       ) : null}
+      {(modal === "delete-exercise" || modal === "delete-day") && (
+        <Modal
+          title={
+            modal === "delete-exercise"
+              ? "Xác nhận xóa bài tập"
+              : "Xác nhận xóa ngày tập"
+          }
+          onClose={() => setModal(null)}
+        >
+          <div>
+            {modal === "delete-exercise" ? (
+              <>
+                <p className="admin-confirm-message">
+                  {`Bạn có chắc chắn muốn xóa "${form?.exerciseName || "bài tập này"}" khỏi ngày tập?`}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="admin-confirm-message">
+                  {`Bạn có chắc chắn muốn xóa ${form?.dayName ? `DAY ${form.dayOrder} - ${form.dayName}` : "ngày tập này"}?`}
+                </p>
+                <p className="admin-confirm-message">
+                  Toàn bộ bài tập trong ngày này cũng sẽ bị xóa.
+                </p>
+              </>
+            )}
+            {formError && <div className="admin-form-error">{formError}</div>}
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-button admin-button--secondary"
+                onClick={() => setModal(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={
+                  modal === "delete-exercise"
+                    ? handleDeleteExercise
+                    : handleDeleteWorkoutDay
+                }
+                disabled={saving}
+                className="admin-button admin-button--danger"
+              >
+                {saving
+                  ? "Đang xóa..."
+                  : modal === "delete-exercise"
+                    ? "Xóa"
+                    : "Xóa ngày tập"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

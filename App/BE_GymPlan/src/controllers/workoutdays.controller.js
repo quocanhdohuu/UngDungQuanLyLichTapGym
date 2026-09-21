@@ -20,12 +20,10 @@ const WorkoutdaysController = {
         Number(req.params.planId),
         req.body.dayName.trim(),
       );
-      return res
-        .status(201)
-        .json({
-          message: result?.message || "Thêm ngày tập thành công",
-          data: result,
-        });
+      return res.status(201).json({
+        message: result?.message || "Thêm ngày tập thành công",
+        data: result,
+      });
     } catch (error) {
       return res
         .status(500)
@@ -49,11 +47,9 @@ const WorkoutdaysController = {
         data: result,
       });
     } catch (error) {
-      return res
-        .status(500)
-        .json({
-          message: getErrorMessage(error) || "Cập nhật ngày tập thất bại",
-        });
+      return res.status(500).json({
+        message: getErrorMessage(error) || "Cập nhật ngày tập thất bại",
+      });
     }
   },
 
@@ -127,22 +123,23 @@ const WorkoutdaysController = {
     });
   },
 
-  delete: (req, res) => {
-    const id = req.params.dayId;
+  delete: async (req, res) => {
+    if (!isPositiveId(req.params.dayId))
+      return res.status(400).json({ message: "dayId không hợp lệ" });
 
-    Workoutdays.delete(id, (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Xóa thất bại",
-          error: err,
-        });
-      }
-
-      res.json({
-        message: "Xóa thành công",
+    try {
+      const result = await Workoutdays.removeWithProcedure(
+        Number(req.params.dayId),
+      );
+      return res.json({
+        message: result?.message || "Xóa ngày tập thành công",
         data: result,
       });
-    });
+    } catch (error) {
+      return res.status(500).json({
+        message: getErrorMessage(error) || "Xóa ngày tập thất bại",
+      });
+    }
   },
 };
 

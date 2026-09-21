@@ -1,3 +1,4 @@
+import { AdminIcon } from "./AdminControls";
 const AdminHeader = () => {
   return (
     <header className="admin-header">
@@ -9,8 +10,8 @@ const AdminHeader = () => {
       </div>
 
       <div className="header-actions">
-        <label className="header-search" aria-label="Search">
-          <span className="search-icon">⌕</span>
+        <label className="admin-search header-search" aria-label="Search">
+          <AdminIcon name="search" />
           <input
             type="text"
             value="Tìm nhanh Ctrl + K..."
@@ -21,7 +22,7 @@ const AdminHeader = () => {
 
         <button
           type="button"
-          className="header-icon-button"
+          className="admin-button admin-button--icon"
           aria-label="Notifications"
         >
           <span>🔔</span>

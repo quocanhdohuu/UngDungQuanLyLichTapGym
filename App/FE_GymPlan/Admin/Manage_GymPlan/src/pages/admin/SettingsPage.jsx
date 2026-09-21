@@ -1,3 +1,4 @@
+import AdminPageHeader from "../../components/admin/AdminPageHeader";
 import { useState } from "react";
 
 function SettingsIcon({ name }) {
@@ -94,16 +95,16 @@ function SettingsCard({
   className = "",
 }) {
   return (
-    <section className={`settings-card ${className}`}>
-      <div className="settings-card-heading">
-        <span className="settings-card-icon">
+    <section className={`admin-card ${className}`}>
+      <div className="admin-card-heading">
+        <span className="admin-card-icon">
           <SettingsIcon name={icon} />
         </span>
         <div>
           <h2>{title}</h2>
           <p>{description}</p>
         </div>
-        <span className="settings-card-badge">{badge}</span>
+        <span className="admin-badge admin-badge--success admin-card-badge">{badge}</span>
       </div>
       {children}
     </section>
@@ -127,40 +128,31 @@ const SettingsPage = () => {
   ];
 
   return (
-    <div className="settings-page">
-      <div className="settings-page-header">
-        <div>
-          <div className="settings-breadcrumb">
-            <span>Home</span>
-            <b>/</b>
-            <span>Cấu hình</span>
-            <b>/</b>
-            <strong>Cấu hình hệ thống</strong>
-          </div>
-          <h1>Cấu hình hệ thống</h1>
-          <p>
-            Thiết lập thông số vận hành, quy tắc tập luyện, dịch vụ thông báo và
-            tích hợp bên thứ ba.
-          </p>
-        </div>
-        <div className="settings-status">
-          <div className="settings-sync">
-            <span>✓</span>
-            <div>
-              <strong>Đồng bộ thành công</strong>
-              <small>Cấu hình đã được lưu trên toàn cụm máy chủ.</small>
+    <div className="admin-page settings-page">
+      <AdminPageHeader
+        eyebrow="Cấu hình"
+        title="Cấu hình hệ thống"
+        description="Thiết lập thông số vận hành, quy tắc tập luyện, dịch vụ thông báo và tích hợp bên thứ ba."
+        actions={
+          <div className="settings-status">
+            <div className="settings-sync">
+              <span>✓</span>
+              <div>
+                <strong>Đồng bộ thành công</strong>
+                <small>Cấu hình đã được lưu trên toàn cụm máy chủ.</small>
+              </div>
+              <b>×</b>
             </div>
-            <b>×</b>
-          </div>
-          <div className="settings-cluster">
-            <i />{" "}
-            <div>
-              <strong>MASTER CLUSTER</strong>
-              <small>SGP1-Node-Alpha (Live)</small>
+            <div className="settings-cluster">
+              <i />{" "}
+              <div>
+                <strong>MASTER CLUSTER</strong>
+                <small>SGP1-Node-Alpha (Live)</small>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="settings-tabs">
         {tabs.map((tab) => (
@@ -185,29 +177,29 @@ const SettingsPage = () => {
           >
             <div className="settings-fields">
               <div>
-                <label>TÊN ỨNG DỤNG</label>
+                <label>Tên ứng dụng</label>
                 <strong>
                   GYMFORLIFE <SettingsIcon name="copy" />
                 </strong>
               </div>
               <div>
-                <label>PHIÊN BẢN HIỆN TẠI</label>
+                <label>Phiên bản hiện tại</label>
                 <strong>
-                  v2.4.0 <em>Latest Stable</em>
+                  v2.4.0 <em className="admin-badge admin-badge--success">Latest Stable</em>
                 </strong>
                 <small>(Build 2024.01.15)</small>
               </div>
               <div>
-                <label>EMAIL HỖ TRỢ KỸ THUẬT</label>
+                <label>Email hỗ trợ kỹ thuật</label>
                 <strong>support@gymforlife.vn</strong>
               </div>
               <div>
-                <label>HOTLINE</label>
+                <label>Hotline</label>
                 <strong>1900 8899</strong>
               </div>
               <div className="settings-full">
                 <label>
-                  MÚI GIỜ HỆ THỐNG <SettingsIcon name="clock" />
+                  Múi giờ hệ thống <SettingsIcon name="clock" />
                 </label>
                 <strong>(GMT+07:00) Bangkok, Hanoi, Jakarta</strong>
               </div>
@@ -271,7 +263,7 @@ const SettingsPage = () => {
                     <small>{sub}</small>
                     <p>{desc}</p>
                   </div>
-                  {tag && <em>{tag}</em>}
+                  {tag && <em className="admin-badge admin-badge--success">{tag}</em>}
                   <SettingsToggle
                     on={notifications[index]}
                     onChange={(value) =>
@@ -302,10 +294,11 @@ const SettingsPage = () => {
           >
             <div className="settings-rule-grid">
               <div className="settings-rule">
-                <label>THỜI GIAN NGHỈ MẶC ĐỊNH</label>
+                <label>Thời gian nghỉ mặc định</label>
                 <div className="settings-stepper">
                   <button
                     type="button"
+                    className="admin-button admin-button--icon"
                     onClick={() => setRestTime(Math.max(15, restTime - 15))}
                   >
                     −
@@ -316,6 +309,7 @@ const SettingsPage = () => {
                   </strong>
                   <button
                     type="button"
+                    className="admin-button admin-button--icon"
                     onClick={() => setRestTime(restTime + 15)}
                   >
                     +
@@ -324,16 +318,16 @@ const SettingsPage = () => {
                 <small>Khoảng thay đổi: ±15 giây</small>
               </div>
               <div className="settings-rule">
-                <label>GIỚI HẠN RPE CẢNH BÁO</label>
+                <label>Giới hạn RPE cảnh báo</label>
                 <div className="settings-rpe">
-                  <em>High Load</em>
+                  <em className="admin-badge admin-badge--warning">High Load</em>
                   <strong>RPE 9.5</strong>
                   <SettingsIcon name="warning" />
                 </div>
                 <small>Kích hoạt cảnh báo quá tải thần kinh cơ</small>
               </div>
               <div className="settings-rule">
-                <label>ĐƠN VỊ KHỐI LƯỢNG TẠ</label>
+                <label>Đơn vị khối lượng tạ</label>
                 <div className="settings-choice">
                   {["KG", "LBS"].map((unit) => (
                     <button
@@ -350,7 +344,7 @@ const SettingsPage = () => {
                 </div>
               </div>
               <div className="settings-rule">
-                <label>ĐƠN VỊ KHOẢNG CÁCH / CARDIO</label>
+                <label>Đơn vị khoảng cách / Cardio</label>
                 <div className="settings-choice">
                   {["KM", "Miles"].map((unit) => (
                     <button
@@ -459,14 +453,14 @@ const SettingsPage = () => {
             Lần cập nhật cuối: Hôm nay lúc 14:32 bởi <b>Super Admin Quoc Anh</b>
           </span>
         </div>
-        <button type="button">Khôi phục mặc định</button>
+        <button type="button" className="admin-button admin-button--secondary">Khôi phục mặc định</button>
         <button
           type="button"
-          className="settings-save"
+          className="admin-button admin-button--primary"
           onClick={() => setSaved(true)}
         >
           <SettingsIcon name="save" />
-          {saved ? "ĐÃ LƯU" : "LƯU CẤU HÌNH"}
+          {saved ? "Đã lưu" : "Lưu cấu hình"}
         </button>
       </div>
     </div>

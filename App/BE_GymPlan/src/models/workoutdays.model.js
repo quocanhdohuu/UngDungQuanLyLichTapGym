@@ -31,6 +31,13 @@ Workoutdays.updateWithProcedure = async (dayId, dayName) => {
   return result[0]?.[0] || null;
 };
 
+Workoutdays.removeWithProcedure = async (dayId) => {
+  const [result] = await db
+    .promise()
+    .query("CALL sp_DeleteWorkoutDay(?)", [dayId]);
+  return result[0]?.[0] || null;
+};
+
 Workoutdays.getAll = (callback) => {
   const sqlString = "SELECT * FROM `workoutdays`";
   db.query(sqlString, (err, result) => {
