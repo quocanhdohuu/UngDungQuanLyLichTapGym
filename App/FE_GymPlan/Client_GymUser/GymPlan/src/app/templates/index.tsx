@@ -1,13 +1,13 @@
 import { DataState } from "@/components/common/data-state";
+import { SharedHeader } from "@/components/common/shared-header";
 import { useApiData } from "@/hooks/use-api-data";
 import { LibraryExercise, userApi } from "@/services/user-api";
-import { SharedHeader } from "@/components/common/shared-header";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import {
   Image,
-  RefreshControl,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,11 +28,53 @@ const colors = {
   orange: "#FF9A32",
 };
 
-function ExerciseCard({
-  exercise,
-}: {
-  exercise: LibraryExercise;
-}) {
+function getPreviewImageUrl(exercise: LibraryExercise) {
+  const imageMediaUrl = exercise.media?.find(
+    (media) => (media.mediaType || "").toUpperCase() === "IMAGE",
+  )?.mediaUrl;
+
+  if (imageMediaUrl) return imageMediaUrl;
+
+  const candidate =
+    exercise.preview ||
+    exercise.media?.find(
+      (media) =>
+        (media.mediaType || "").toUpperCase() === "VIDEO" ||
+        (media.mediaType || "").toUpperCase() === "MP4" ||
+        (media.mediaType || "").toUpperCase() === "VIDEO_URL",
+    )?.mediaUrl;
+
+  if (!candidate) return null;
+
+  const normalized = candidate.trim();
+  if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(normalized)) return normalized;
+  if (/\.(mp4|mov|webm|m3u8|avi)(\?.*)?$/i.test(normalized)) {
+    return normalized.replace(/\.(mp4|mov|webm|m3u8|avi)(\?.*)?$/i, ".jpg");
+  }
+
+  return normalized;
+}
+
+function ExerciseMediaPreview({ exercise }: { exercise: LibraryExercise }) {
+  const imageUrl = getPreviewImageUrl(exercise);
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={{ width: "100%", height: "100%" }}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.thumbnailPlaceholder}>
+      <Text style={styles.thumbnailFigure}>⚒</Text>
+    </View>
+  );
+}
+
+function ExerciseCard({ exercise }: { exercise: LibraryExercise }) {
   const [bookmarked, setBookmarked] = useState(false);
   const levelStyle =
     exercise.difficulty === "EASY"
@@ -44,14 +86,22 @@ function ExerciseCard({
   return (
     <View style={styles.exerciseCard}>
       <View style={[styles.thumbnail, { backgroundColor: "#153B35" }]}>
-        {exercise.preview ? <Image source={{ uri: exercise.preview }} style={{ width: "100%", height: "100%" }} /> : <Text style={styles.thumbnailFigure}>⚒</Text>}
+        <ExerciseMediaPreview exercise={exercise} />
       </View>
       <View style={styles.exerciseCopy}>
         <View style={styles.exerciseMetaTop}>
           <Text numberOfLines={1} style={styles.category}>
-            {[exercise.primaryMuscles, exercise.equipment].filter(Boolean).join(" • ") || "Chưa phân loại"}
+            {[exercise.primaryMuscles, exercise.equipment]
+              .filter(Boolean)
+              .join(" • ") || "Chưa phân loại"}
           </Text>
-          <Text style={[styles.level, levelStyle]}>{{ EASY: "Beginner", MEDIUM: "Intermediate", HARD: "Advanced" }[exercise.difficulty]}</Text>
+          <Text style={[styles.level, levelStyle]}>
+            {
+              { EASY: "Beginner", MEDIUM: "Intermediate", HARD: "Advanced" }[
+                exercise.difficulty
+              ]
+            }
+          </Text>
         </View>
         <Text numberOfLines={1} style={styles.exerciseName}>
           {exercise.name}
@@ -82,20 +132,43 @@ export default function TemplatesScreen() {
   const [search, setSearch] = useState("");
   const state = useApiData(userApi.library);
   const exercises = state.data || [];
-  const groupsOf = (exercise: LibraryExercise) => (exercise.primaryMuscles || "").split(",").map((name) => name.trim()).filter(Boolean);
+  const groupsOf = (exercise: LibraryExercise) =>
+    (exercise.primaryMuscles || "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean);
   const groupNames = Array.from(new Set(exercises.flatMap(groupsOf)));
   const filters = ["Tất cả", ...groupNames];
-  const muscleGroups = groupNames.map((name) => ["💪", name, `${exercises.filter((exercise) => groupsOf(exercise).includes(name)).length} bài`]);
-  const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
-  const visibleExercises = exercises.filter((exercise) =>
-    (activeFilter === "Tất cả" || groupsOf(exercise).includes(activeFilter)) &&
-    normalize(`${exercise.name} ${exercise.description || ""} ${exercise.primaryMuscles || ""} ${exercise.equipment || ""}`).includes(normalize(search.trim())));
-
+  const muscleGroups = groupNames.map((name) => [
+    "💪",
+    name,
+    `${exercises.filter((exercise) => groupsOf(exercise).includes(name)).length} bài`,
+  ]);
+  const normalize = (text: string) =>
+    text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .toLowerCase();
+  const visibleExercises = exercises.filter(
+    (exercise) =>
+      (activeFilter === "Tất cả" ||
+        groupsOf(exercise).includes(activeFilter)) &&
+      normalize(
+        `${exercise.name} ${exercise.description || ""} ${exercise.primaryMuscles || ""} ${exercise.equipment || ""}`,
+      ).includes(normalize(search.trim())),
+  );
 
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
-        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} tintColor={colors.green} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={state.loading}
+            onRefresh={state.refresh}
+            tintColor={colors.green}
+          />
+        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -107,10 +180,20 @@ export default function TemplatesScreen() {
         <Text style={styles.eyebrow}>KHÁM PHÁ &amp; XÂY DỰNG SỨC MẠNH</Text>
         <Text style={styles.heading}>THƯ VIỆN</Text>
         <Text style={styles.intro}>
-          {state.data ? `${exercises.length} bài tập trong thư viện` : "Khám phá bài tập và hướng dẫn chi tiết"}
+          {state.data
+            ? `${exercises.length} bài tập trong thư viện`
+            : "Khám phá bài tập và hướng dẫn chi tiết"}
         </Text>
 
-        <DataState {...state} retry={state.refresh} empty={!!state.data && !exercises.length && "Chưa có bài tập trong thư viện"} />
+        <DataState
+          {...state}
+          retry={state.refresh}
+          empty={
+            !!state.data &&
+            !exercises.length &&
+            "Chưa có bài tập trong thư viện"
+          }
+        />
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
@@ -130,11 +213,15 @@ export default function TemplatesScreen() {
               onChangeText={setSearch}
               style={styles.searchInput}
             />
-            <Text style={styles.clear} onPress={() => setSearch("")}>×</Text>
+            <Text style={styles.clear} onPress={() => setSearch("")}>
+              ×
+            </Text>
           </View>
           <Pressable style={styles.filterButton}>
             <Text style={styles.filterIcon}>☷</Text>
-            <Text style={styles.filterDot}>{activeFilter === "Tất cả" ? 0 : 1}</Text>
+            <Text style={styles.filterDot}>
+              {activeFilter === "Tất cả" ? 0 : 1}
+            </Text>
           </Pressable>
         </View>
 
@@ -167,12 +254,18 @@ export default function TemplatesScreen() {
         <View style={[styles.sectionHeader, styles.exerciseHeader]}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>DANH SÁCH BÀI TẬP</Text>
-            <Text style={styles.countBadge}>{visibleExercises.length} bài tập</Text>
+            <Text style={styles.countBadge}>
+              {visibleExercises.length} bài tập
+            </Text>
           </View>
           <Text style={styles.sortText}>≡ Danh sách bài tập</Text>
         </View>
         <View style={styles.exerciseList}>
-          {!!exercises.length && !visibleExercises.length && <Text style={styles.description}>Không tìm thấy bài tập phù hợp</Text>}
+          {!!exercises.length && !visibleExercises.length && (
+            <Text style={styles.description}>
+              Không tìm thấy bài tập phù hợp
+            </Text>
+          )}
           {visibleExercises.map((exercise) => (
             <ExerciseCard key={exercise.exerciseId} exercise={exercise} />
           ))}
@@ -354,6 +447,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 9,
+    overflow: "hidden",
+  },
+  thumbnailPlaceholder: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0F2E2A",
   },
   thumbnailFigure: { color: "#BFD5C5", fontSize: 28 },
   exerciseCopy: { flex: 1, minWidth: 0 },
