@@ -1,6 +1,9 @@
+import { DataState } from "@/components/common/data-state";
+import { useApiData } from "@/hooks/use-api-data";
+import { formatNumber, levelLabel, userApi } from "@/services/user-api";
 import { SharedHeader } from "@/components/common/shared-header";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = {
@@ -20,7 +23,7 @@ function SectionHeader({ title, action }: { title: string; action?: string }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {action && <Text style={styles.sectionAction}>{action}</Text>}
+      {action ? <Text style={styles.sectionAction}>{action}</Text> : null}
     </View>
   );
 }
@@ -55,7 +58,7 @@ function StatCard({
       </View>
       <View style={styles.statValueRow}>
         <Text style={styles.statValue}>{value}</Text>
-        {suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
+        {suffix ? <Text style={styles.statSuffix}>{suffix}</Text> : null}
       </View>
       {children}
     </View>
@@ -68,12 +71,14 @@ function ExerciseRow({
   detail,
   status,
   completed,
+  sets,
 }: {
   number: string;
   name: string;
   detail: string;
   status: string;
   completed?: boolean;
+  sets: number;
 }) {
   return (
     <Pressable style={styles.exerciseRow}>
@@ -93,7 +98,7 @@ function ExerciseRow({
       <View style={styles.exerciseMeta}>
         <Text style={styles.exerciseWeight}>{status}</Text>
         <Text style={styles.exerciseSets}>
-          {completed ? "8 reps" : number === "02" ? "3 sets" : "4 sets"}
+          {sets} sets
         </Text>
       </View>
     </Pressable>
@@ -101,9 +106,25 @@ function ExerciseRow({
 }
 
 export default function HomeScreen() {
+  const state = useApiData(async (signal) => {
+    const [profile, plan, today, summary, records, history] = await Promise.all([
+      userApi.profile(signal), userApi.activePlan(signal), userApi.todayWorkout(signal),
+      userApi.progressSummary(signal), userApi.personalRecords(signal), userApi.history("WEEK", signal),
+    ]);
+    return { profile, plan, today, summary, records, history };
+  });
+  const { profile, plan, today, summary, records = [], history = [] } = state.data || {};
+  const weeklyVolume = history.reduce((sum, item) => sum + Number(item.totalVolume), 0) / 1000;
+  const recentVolumes = history.slice(0, 3).reverse().map((item) => Number(item.totalVolume));
+  const maxVolume = Math.max(1, ...recentVolumes);
+  const record = records[0];
+  const target = Number(plan?.totalDays || profile?.sessionsPerWeek || 0);
+  const completed = Number(plan?.completedThisWeek ?? history.length);
+
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -114,143 +135,129 @@ export default function HomeScreen() {
           onAvatarPress={() => router.push("/profile")}
         />
 
-        <View style={styles.greetingRow}>
-          <View style={styles.greetingCopy}>
-            <Text style={styles.greeting}>
-              Xin chào, Quoc Anh <Text style={styles.wave}>👋</Text>
-            </Text>
-            <Text style={styles.subtitle}>
-              Cùng cố gắng hoàn thành mục tiêu...
-            </Text>
+        <DataState {...state} retry={state.refresh} />
+        {state.data && <>
+          <View style={styles.greetingRow}>
+            <View style={styles.greetingCopy}>
+              <Text style={styles.greeting}>
+                Xin chào, {profile?.fullName} <Text style={styles.wave}>👋</Text>
+              </Text>
+              <Text style={styles.subtitle}>
+                Cùng cố gắng hoàn thành mục tiêu...
+              </Text>
+            </View>
+            <View style={styles.streak}>
+              <Text style={styles.streakText}>🔥 {summary?.currentStreak ?? 0} DAY STREAK</Text>
+            </View>
           </View>
-          <View style={styles.streak}>
-            <Text style={styles.streakText}>🔥 5 DAY STREAK</Text>
-          </View>
-        </View>
 
-        <View style={styles.workoutCard}>
-          <WorkoutBackdrop />
-          <View style={styles.workoutTopline}>
-            <Text style={styles.todayBadge}>● BUỔI TẬP HÔM NAY</Text>
-            <Text style={styles.dateBadge}>◷ Thứ Năm</Text>
+          <View style={styles.workoutCard}>
+            <WorkoutBackdrop />
+            <View style={styles.workoutTopline}>
+              <Text style={styles.todayBadge}>● BUỔI TẬP HÔM NAY</Text>
+              <Text style={styles.dateBadge}>◷ {new Date().toLocaleDateString("vi-VN", { weekday: "long" })}</Text>
+            </View>
+            <View style={styles.workoutInfo}>
+              <View style={styles.pushTitleRow}>
+                <Text style={styles.pushTitle}>{today?.dayName || "Hôm nay không có buổi tập"}</Text>
+                <Text style={styles.levelBadge}>{levelLabel(plan?.level)}</Text>
+              </View>
+              <Text style={styles.workoutDetails}>
+                {today ? `${today.totalExercises} bài tập • ${today.totalSets} sets` : plan ? "Ngày nghỉ" : "Chưa có lịch tập"}
+              </Text>
+              <View style={styles.progressRow}>
+                {Array.from({ length: target }, (_, index) => (
+                  <View key={index} style={[styles.progressSegment, index < completed && styles.progressActive]} />
+                ))}
+              </View>
+              <Pressable style={styles.startButton} disabled={!today}>
+                <Text style={styles.startIcon}>▶</Text>
+                <Text style={styles.startText}>START WORKOUT</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.workoutInfo}>
-            <View style={styles.pushTitleRow}>
-              <Text style={styles.pushTitle}>Push Day</Text>
-              <Text style={styles.levelBadge}>A1</Text>
-            </View>
-            <Text style={styles.workoutDetails}>
-              5 bài tập • 45 phút • Ngực &amp; Vai
-            </Text>
-            <View style={styles.progressRow}>
-              <View style={[styles.progressSegment, styles.progressActive]} />
-              <View style={[styles.progressSegment, styles.progressActive]} />
-              <View style={styles.progressSegment} />
-              <View style={styles.progressSegment} />
-            </View>
-            <Pressable style={styles.startButton}>
-              <Text style={styles.startIcon}>▶</Text>
-              <Text style={styles.startText}>START WORKOUT</Text>
+
+          <SectionHeader title="TIẾN TRÌNH TUẦN NÀY" action="Chi tiết →" />
+          <View style={styles.statsRow}>
+            <StatCard label="Số buổi" value={String(completed)} suffix={target ? `/${target}` : ""}>
+              <View style={styles.miniDots}>
+                {Array.from({ length: target }, (_, index) => <View key={index} style={index < completed ? styles.dotActive : styles.dot} />)}
+              </View>
+            </StatCard>
+            <StatCard label="Khối lượng" value={formatNumber(weeklyVolume)} suffix="T">
+              <View style={styles.miniBars}>
+                {recentVolumes.map((volume, index) => (
+                  <View key={index} style={[styles.barMedium, { height: volume / maxVolume * 24 }]} />
+                ))}
+              </View>
+            </StatCard>
+            <StatCard label="Personal Record" value={formatNumber(record?.maxWeight)} suffix="KG">
+              <Text style={styles.recordText}>{record?.exerciseName || "Chưa có PR"}</Text>
+              <Text style={styles.recordDelta}>{record ? "Thành tích cao nhất" : "—"}</Text>
+            </StatCard>
+          </View>
+
+          <SectionHeader
+            title="DANH SÁCH BÀI TẬP HÔM NAY"
+            action={today ? `${today.totalExercises} bài • ${today.totalSets} sets` : ""}
+          />
+          <View style={styles.exerciseList}>
+            {today?.exercises.map((exercise, index) => (
+              <ExerciseRow key={exercise.configId} number={String(index + 1).padStart(2, "0")}
+                name={exercise.exerciseName} detail={`${exercise.sets} sets • ${exercise.reps} reps`}
+                status={`Nghỉ ${exercise.restTime}s`} sets={exercise.sets} />
+            ))}
+            {!today?.exercises.length && <Text style={styles.exerciseDetail}>{today ? "Chưa có bài tập" : "Hôm nay không có buổi tập"}</Text>}
+          </View>
+
+          <SectionHeader title="LỐI TẮT NHANH" />
+          <View style={styles.shortcutsGrid}>
+            <Pressable style={styles.shortcut}>
+              <Text style={styles.shortcutIcon}>▣</Text>
+              <View>
+                <Text style={styles.shortcutTitle}>Lịch tập</Text>
+                <Text style={styles.shortcutDetail}>Tuần này: {completed}/{target || "—"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/templates")}
+              style={styles.shortcut}
+            >
+              <Text style={styles.shortcutIcon}>▤</Text>
+              <View>
+                <Text style={styles.shortcutTitle}>Thư viện</Text>
+                <Text style={styles.shortcutDetail}>Khám phá bài tập</Text>
+              </View>
+            </Pressable>
+            <Pressable style={styles.shortcut}>
+              <Text style={styles.shortcutIcon}>✣</Text>
+              <View>
+                <Text style={styles.shortcutTitle}>Lịch mẫu</Text>
+                <Text style={styles.shortcutDetail}>Khám phá lịch mẫu</Text>
+              </View>
+            </Pressable>
+            <Pressable style={styles.shortcut}>
+              <Text style={styles.shortcutIcon}>◷</Text>
+              <View>
+                <Text style={styles.shortcutTitle}>Lịch sử</Text>
+                <Text style={styles.shortcutDetail}>{summary?.totalSessions ?? 0} buổi tập</Text>
+              </View>
             </Pressable>
           </View>
-        </View>
 
-        <SectionHeader title="TIẾN TRÌNH TUẦN NÀY" action="Chi tiết →" />
-        <View style={styles.statsRow}>
-          <StatCard label="Số buổi" value="3" suffix="/4">
-            <View style={styles.miniDots}>
-              <View style={styles.dotActive} />
-              <View style={styles.dotActive} />
-              <View style={styles.dotActive} />
-              <View style={styles.dot} />
+          <View style={styles.quoteCard}>
+            <Text style={styles.quoteIcon}>ϟ</Text>
+            <View style={styles.quoteCopy}>
+              <Text style={styles.quoteTitle}>
+                "Consistency over perfection."
+              </Text>
+              <Text style={styles.quoteDetail}>
+                Tập đều đặn, kết quả sẽ tự đến.
+              </Text>
             </View>
-          </StatCard>
-          <StatCard label="Khối lượng" value="12.5" suffix="T">
-            <View style={styles.miniBars}>
-              <View style={styles.barShort} />
-              <View style={styles.barTall} />
-              <View style={styles.barMedium} />
-            </View>
-          </StatCard>
-          <StatCard label="Kỷ lục mới" value="60" suffix="KG">
-            <Text style={styles.recordText}>Bench Press</Text>
-            <Text style={styles.recordDelta}>↗ +2.5 kg</Text>
-          </StatCard>
-        </View>
-
-        <SectionHeader
-          title="DANH SÁCH BÀI TẬP HÔM NAY"
-          action="5 bài • 16 sets"
-        />
-        <View style={styles.exerciseList}>
-          <ExerciseRow
-            number="01"
-            name="Barbell Bench Press"
-            detail="4 sets • Đã hoàn thành"
-            status="60 KG"
-            completed
-          />
-          <ExerciseRow
-            number="02"
-            name="Incline Dumbbell Press"
-            detail="3 sets • Mục tiêu: 22kg"
-            status="Sắp tập"
-          />
-          <ExerciseRow
-            number="03"
-            name="Standing Overhead Press"
-            detail="3 sets • 10-12 reps"
-            status="—"
-          />
-        </View>
-
-        <SectionHeader title="LỐI TẮT NHANH" />
-        <View style={styles.shortcutsGrid}>
-          <Pressable style={styles.shortcut}>
-            <Text style={styles.shortcutIcon}>▣</Text>
-            <View>
-              <Text style={styles.shortcutTitle}>Lịch tập</Text>
-              <Text style={styles.shortcutDetail}>Tuần này: 4/5</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/templates")}
-            style={styles.shortcut}
-          >
-            <Text style={styles.shortcutIcon}>▤</Text>
-            <View>
-              <Text style={styles.shortcutTitle}>Thư viện</Text>
-              <Text style={styles.shortcutDetail}>300+ động tác</Text>
-            </View>
-          </Pressable>
-          <Pressable style={styles.shortcut}>
-            <Text style={styles.shortcutIcon}>✣</Text>
-            <View>
-              <Text style={styles.shortcutTitle}>Lịch mẫu</Text>
-              <Text style={styles.shortcutDetail}>PPL, Upper/Lower</Text>
-            </View>
-          </Pressable>
-          <Pressable style={styles.shortcut}>
-            <Text style={styles.shortcutIcon}>◷</Text>
-            <View>
-              <Text style={styles.shortcutTitle}>Lịch sử</Text>
-              <Text style={styles.shortcutDetail}>42 buổi tập</Text>
-            </View>
-          </Pressable>
-        </View>
-
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteIcon}>ϟ</Text>
-          <View style={styles.quoteCopy}>
-            <Text style={styles.quoteTitle}>
-              "Consistency over perfection."
-            </Text>
-            <Text style={styles.quoteDetail}>
-              Tập đều đặn, kết quả sẽ tự đến.
-            </Text>
+            <Text style={styles.quoteNumber}>99</Text>
           </View>
-          <Text style={styles.quoteNumber}>99</Text>
-        </View>
+        </>}
       </ScrollView>
     </SafeAreaView>
   );

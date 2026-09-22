@@ -1,9 +1,14 @@
-import { clearAuthSession, getAuthSession } from "@/auth-session";
+import { DataState } from "@/components/common/data-state";
+import { useApiData } from "@/hooks/use-api-data";
+import { apiRequest } from "@/services/api";
+import { formatDate, levelLabel, Profile, ProfileUpdate, userApi } from "@/services/user-api";
+import { clearAuthSession, getAuthSession, initials } from "@/auth-session";
 import { SharedHeader } from "@/components/common/shared-header";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Platform,
+  RefreshControl,
+  TextInput,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,18 +31,20 @@ const colors = {
   red: "#FF9C9C",
 };
 
-function Stepper({ value, unit }: { value: string; unit: string }) {
+function Stepper({ value, unit, onChange }: { value: string; unit: string; onChange: (value: string) => void }) {
+  const step = (delta: number) => {
+    if (!value.trim() || !Number.isFinite(Number(value))) return;
+    onChange(String(Math.min(999.99, Math.max(0.1, Math.round((Number(value) + delta) * 100) / 100))));
+  };
   return (
     <View style={styles.stepper}>
-      <Pressable style={styles.stepButton}>
-        <Text style={styles.stepText}>−</Text>
-      </Pressable>
-      <Text style={styles.stepValue}>
-        {value} <Text style={styles.stepUnit}>{unit}</Text>
-      </Text>
-      <Pressable style={styles.stepButton}>
-        <Text style={styles.stepText}>＋</Text>
-      </Pressable>
+      <Pressable style={styles.stepButton} onPress={() => step(-1)}><Text style={styles.stepText}>−</Text></Pressable>
+      <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+        <TextInput accessibilityLabel={unit === "cm" ? "Chiều cao" : "Cân nặng"} value={value} onChangeText={onChange}
+          keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.muted} style={styles.stepValue} />
+        <Text style={[styles.stepValue, styles.stepUnit]}> {unit}</Text>
+      </View>
+      <Pressable style={styles.stepButton} onPress={() => step(1)}><Text style={styles.stepText}>＋</Text></Pressable>
     </View>
   );
 }
@@ -129,10 +136,52 @@ function AccountRow({
 }
 
 export default function ProfileScreen() {
-  const [level, setLevel] = useState("Intermediate");
-  const [goal, setGoal] = useState("Tăng cơ");
-  const [frequency, setFrequency] = useState("5 buổi");
+  const state = useApiData(userApi.profile);
+  const profile = state.data;
+  const [fullName, setFullName] = useState("");
+  const [gender, setGender] = useState<Profile["gender"]>(null);
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [level, setLevel] = useState("");
+  const [goal, setGoal] = useState("");
+  const [frequency, setFrequency] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (!profile) return;
+    setFullName(profile.fullName);
+    setGender(profile.gender);
+    setHeight(profile.height == null ? "" : String(profile.height));
+    setWeight(profile.weight == null ? "" : String(profile.weight));
+    setLevel(levelLabel(profile.level));
+    setGoal(profile.goal || "");
+    setFrequency(profile.sessionsPerWeek == null ? "" : `${profile.sessionsPerWeek} buổi`);
+  }, [profile]);
+
+  const save = async () => {
+    if (saving || !profile) return;
+    setSaving(true); setSaved(false); setSaveError(null);
+    try {
+      const metric = (value: string) => {
+        if (!value.trim()) return null;
+        const result = Number(value.replace(",", "."));
+        if (!Number.isFinite(result) || result <= 0 || result > 999.99) throw new Error("Chiều cao/cân nặng không hợp lệ.");
+        return result;
+      };
+      if (!fullName.trim()) throw new Error("Họ tên không được để trống.");
+      await userApi.updateProfile({
+        fullName: fullName.trim(), gender, level: level.toUpperCase() as ProfileUpdate["level"],
+        goal: goal || null, sessionsPerWeek: frequency ? Number.parseInt(frequency, 10) : null,
+        height: metric(height), weight: metric(weight),
+      });
+      await state.refresh();
+      setSaved(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Không thể lưu hồ sơ.");
+    } finally { setSaving(false); }
+  };
 
   const logout = async () => {
     if (loggingOut) return;
@@ -141,17 +190,12 @@ export default function ProfileScreen() {
     try {
       const session = getAuthSession();
       if (session) {
-        const apiBaseUrl =
-          Platform.OS === "web" && typeof window !== "undefined"
-            ? `http://${window.location.hostname}:3000`
-            : "http://172.20.10.6:3000";
-
-        await fetch(`${apiBaseUrl}/auth/logout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(session),
+        await apiRequest("/auth/logout", {
+          method: "POST", body: JSON.stringify({ accountId: session.accountId, loginSessionId: session.loginSessionId }),
         });
       }
+    } catch {
+      // Always clear this device session, including when the server is unavailable.
     } finally {
       clearAuthSession();
       router.replace("/");
@@ -162,6 +206,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} enabled={!saving} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -171,64 +216,72 @@ export default function ProfileScreen() {
           parentTopPadding={13}
         />
 
-        <View style={styles.profileCard}>
-          <View style={styles.largeAvatar}>
-            <Text style={styles.largeAvatarText}>QA</Text>
-            <View style={styles.camera}>
-              <Text style={styles.cameraText}>▣</Text>
+        <DataState {...state} retry={state.refresh} />
+        <DataState loading={false} error={saveError} retry={save} />
+        {saved && <Text style={styles.updated}>Đã lưu thay đổi{state.error ? "; vui lòng thử tải lại hồ sơ" : ""}.</Text>}
+        {profile && <View pointerEvents={saving ? "none" : "auto"}>
+          <View style={styles.profileCard}>
+            <View style={styles.largeAvatar}>
+              <Text style={styles.largeAvatarText}>{initials(profile.fullName)}</Text>
+              <View style={styles.camera}>
+                <Text style={styles.cameraText}>▣</Text>
+              </View>
+            </View>
+            <View style={styles.profileCopy}>
+              <View style={styles.nameRow}>
+                <TextInput accessibilityLabel="Họ tên" value={fullName} onChangeText={setFullName} maxLength={100} style={styles.profileName} />
+                <Text style={styles.vip}>{levelLabel(profile.level)}</Text>
+              </View>
+              <Text style={styles.email}>{profile.email}</Text>
+              <Pressable accessibilityLabel="Thay đổi giới tính" onPress={() => setGender(gender === "MALE" ? "FEMALE" : gender === "FEMALE" ? "OTHER" : "MALE")}>
+                <Text style={styles.proBadge}>{gender === "MALE" ? "Nam" : gender === "FEMALE" ? "Nữ" : gender === "OTHER" ? "Khác" : "Chưa có giới tính"}</Text>
+              </Pressable>
             </View>
           </View>
-          <View style={styles.profileCopy}>
-            <View style={styles.nameRow}>
-              <Text style={styles.profileName}>Quoc Anh</Text>
-              <Text style={styles.vip}>VIP</Text>
-            </View>
-            <Text style={styles.email}>quocanh.fit@gymforlife.app</Text>
-            <Text style={styles.proBadge}>✿ PRO ATHLETE</Text>
-          </View>
-        </View>
 
-        <View style={styles.bodyCard}>
-          <View style={styles.cardTitleRow}>
-            <View style={styles.cardTitleGroup}>
-              <Text style={styles.cardTitleIcon}>▤</Text>
-              <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
+          <View style={styles.bodyCard}>
+            <View style={styles.cardTitleRow}>
+              <View style={styles.cardTitleGroup}>
+                <Text style={styles.cardTitleIcon}>▤</Text>
+                <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
+              </View>
+              <Text style={styles.updated}>{profile.bodyMetricUpdatedAt ? formatDate(profile.bodyMetricUpdatedAt) : "Chưa có chỉ số"}</Text>
             </View>
-            <Text style={styles.updated}>Cập nhật hôm nay</Text>
+            <View style={styles.measureRow}>
+              <View style={styles.measure}>
+                <Text style={styles.measureLabel}>Chiều cao</Text>
+                <Stepper value={height} unit="cm" onChange={setHeight} />
+              </View>
+              <View style={styles.measure}>
+                <Text style={styles.measureLabel}>Cân nặng</Text>
+                <Stepper value={weight} unit="kg" onChange={setWeight} />
+              </View>
+            </View>
+            <OptionRow
+              title="TRÌNH ĐỘ LUYỆN TẬP"
+              options={["Beginner", "Intermediate", "Advanced"]}
+              selected={level}
+              onSelect={setLevel}
+            />
+            <OptionRow
+              title="MỤC TIÊU CHÍNH"
+              options={Array.from(new Set(["Tăng cơ", "Giảm mỡ", "Sức bền", ...(goal ? [goal] : [])]))}
+              selected={goal}
+              onSelect={setGoal}
+            />
+            <OptionRow
+              title="TẦN SUẤT TẬP / TUẦN"
+              options={Array.from(new Set(["3 buổi", "4 buổi", "5 buổi", "6 buổi", ...(frequency ? [frequency] : [])]))}
+              selected={frequency}
+              onSelect={setFrequency}
+            />
           </View>
-          <View style={styles.measureRow}>
-            <View style={styles.measure}>
-              <Text style={styles.measureLabel}>Chiều cao</Text>
-              <Stepper value="175" unit="cm" />
-            </View>
-            <View style={styles.measure}>
-              <Text style={styles.measureLabel}>Cân nặng</Text>
-              <Stepper value="67.0" unit="kg" />
-            </View>
-          </View>
-          <OptionRow
-            title="TRÌNH ĐỘ LUYỆN TẬP"
-            options={["Beginner", "Intermediate", "Advanced"]}
-            selected={level}
-            onSelect={setLevel}
-          />
-          <OptionRow
-            title="MỤC TIÊU CHÍNH"
-            options={["Tăng cơ", "Giảm mỡ", "Sức bền"]}
-            selected={goal}
-            onSelect={setGoal}
-          />
-          <OptionRow
-            title="TẦN SUẤT TẬP / TUẦN"
-            options={["3 buổi", "4 buổi", "5 buổi", "6 buổi"]}
-            selected={frequency}
-            onSelect={setFrequency}
-          />
-        </View>
 
-        <Pressable style={styles.saveButton}>
-          <Text style={styles.saveText}>✓ LƯU THAY ĐỔI</Text>
-        </Pressable>
+          <Pressable style={styles.saveButton} onPress={save} disabled={saving || state.loading}>
+            <Text style={styles.saveText}>{saving ? "ĐANG LƯU..." : "✓ LƯU THAY ĐỔI"}</Text>
+          </Pressable>
+
+        </View>}
 
         <View style={styles.accountCard}>
           <View style={styles.accountHeader}>
@@ -236,17 +289,6 @@ export default function ProfileScreen() {
             <Text style={styles.accountHeaderTitle}>Cài đặt tài khoản</Text>
           </View>
           <AccountRow icon="▣" title="Đổi mật khẩu & Bảo mật" />
-          <AccountRow
-            icon="♡"
-            title="Đồng bộ Apple Health / Fit"
-            detail="Đang kích hoạt"
-            toggle
-          />
-          <AccountRow
-            icon="♧"
-            title="Thông báo & Lời nhắc"
-            detail="18:00 mỗi ngày"
-          />
           <AccountRow
             icon="⇥"
             title={loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}

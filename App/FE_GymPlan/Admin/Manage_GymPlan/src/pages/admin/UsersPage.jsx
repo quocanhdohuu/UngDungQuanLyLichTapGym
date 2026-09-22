@@ -30,7 +30,7 @@ const emptyForm = {
 };
 
 const displayValue = (value) => value || "-";
-const getStatus = (user) => user.accountStatus || user.profileStatus || "";
+const getStatus = (user) => user.accountStatus || "";
 const getInitials = (name) =>
   String(name || "?")
     .trim()
@@ -194,7 +194,7 @@ function UsersPage() {
       level: user.level || "",
       goal: user.goal || "",
       sessionsPerWeek: user.sessionsPerWeek ?? "",
-      status: getStatus(user) || "ACTIVE",
+      status: getStatus(user),
     });
     setFormError("");
   };
@@ -213,7 +213,7 @@ function UsersPage() {
       setFormError("Vui lòng nhập username, email và họ tên.");
       return;
     }
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       setFormError("Email không hợp lệ.");
       return;
     }
@@ -223,19 +223,25 @@ function UsersPage() {
     }
     if (
       form.sessionsPerWeek !== "" &&
-      (Number(form.sessionsPerWeek) < 0 || Number(form.sessionsPerWeek) > 7)
+      (!Number.isInteger(Number(form.sessionsPerWeek)) || Number(form.sessionsPerWeek) < 1 || Number(form.sessionsPerWeek) > 7)
     ) {
-      setFormError("Số buổi tập mỗi tuần phải từ 0 đến 7.");
+      setFormError("Số buổi tập mỗi tuần phải là số nguyên từ 1 đến 7.");
       return;
     }
 
     setFormLoading(true);
     const payload = {
       ...form,
+      username: form.username.trim(),
+      email: form.email.trim(),
+      fullName: form.fullName.trim(),
+      gender: form.gender || null,
+      level: form.level || null,
       sessionsPerWeek:
         form.sessionsPerWeek === "" ? null : Number(form.sessionsPerWeek),
     };
     if (formMode === "edit") delete payload.password;
+    else delete payload.status;
 
     try {
       const response = await fetch(
@@ -516,6 +522,7 @@ function UsersPage() {
                 Username *
                 <input
                   value={form.username}
+                  maxLength={50}
                   onChange={updateForm("username")}
                 />
               </label>
@@ -524,6 +531,7 @@ function UsersPage() {
                 <input
                   type="email"
                   value={form.email}
+                  maxLength={100}
                   onChange={updateForm("email")}
                 />
               </label>
@@ -533,6 +541,7 @@ function UsersPage() {
                   <input
                     type="password"
                     value={form.password}
+                    maxLength={255}
                     onChange={updateForm("password")}
                   />
                 </label>
@@ -541,6 +550,7 @@ function UsersPage() {
                 Họ tên *
                 <input
                   value={form.fullName}
+                  maxLength={100}
                   onChange={updateForm("fullName")}
                 />
               </label>
@@ -564,26 +574,29 @@ function UsersPage() {
               </label>
               <label className="admin-form-field">
                 Mục tiêu
-                <input value={form.goal} onChange={updateForm("goal")} />
+                <input value={form.goal} maxLength={255} onChange={updateForm("goal")} />
               </label>
               <label className="admin-form-field">
                 Số buổi/tuần
                 <input
                   type="number"
-                  min="0"
+                  min="1"
                   max="7"
+                  step="1"
                   value={form.sessionsPerWeek}
                   onChange={updateForm("sessionsPerWeek")}
                 />
               </label>
               {formMode === "edit" && (
                 <label className="admin-form-field">
-                  Trạng thái
-                  <select value={form.status} onChange={updateForm("status")}>
+                  Trạng thái tài khoản
+                  <select value={form.status} onChange={updateForm("status")} required>
+                    <option value="" disabled>Chọn trạng thái</option>
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="INACTIVE">INACTIVE</option>
                     <option value="LOCKED">LOCKED</option>
                   </select>
+                  <small>Trạng thái hồ sơ hiện tại: {selectedUser?.profileStatus ?? "—"}. LOCKED chỉ khóa tài khoản.</small>
                 </label>
               )}
             </div>

@@ -113,11 +113,7 @@ function AdminSidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="footer-row " style={{ marginTop: "auto" }}>
-          <span>Phiên bản</span>
-          <span className="version-tag">v1.0.0</span>
-        </div>
-
+        
         <button type="button" className="sidebar-link-button">
           <Icon name="help" className="link-icon" />
           <span>Trợ giúp &amp; Tài liệu</span>

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@/services/api";
 import { setAuthSession } from "@/auth-session";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -16,13 +17,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type AuthMode = "login" | "register";
 
 const GREEN = "#8CFF2E";
-const getApiBaseUrl = () => {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return `http://${window.location.hostname}:3000`;
-  }
-  return "http://172.20.10.6:3000";
-};
-const API_BASE_URL = getApiBaseUrl();
 const colors = {
   background: "#080A0C",
   card: "#101416",
@@ -286,9 +280,18 @@ export default function HomeScreen() {
           data?.data?.loginSessionId ?? data?.loginSessionId,
         );
 
-        if (Number.isFinite(accountId) && Number.isFinite(loginSessionId)) {
-          setAuthSession({ accountId, loginSessionId });
+        const user = data?.data ?? data;
+        const profileId = Number(user.profileId);
+        if (![accountId, profileId, loginSessionId].every((id) => Number.isSafeInteger(id) && id > 0) || !user.accessToken) {
+          throw new Error("Thông tin phiên đăng nhập không đầy đủ. Vui lòng đăng nhập lại.");
         }
+        setAuthSession({
+          accountId, profileId, loginSessionId,
+          accessToken: user.accessToken,
+          username: user.username, email: user.email, fullName: user.fullName,
+          gender: user.gender, level: user.level, goal: user.goal,
+          sessionsPerWeek: user.sessionsPerWeek,
+        });
         router.replace("/home");
         return;
       }

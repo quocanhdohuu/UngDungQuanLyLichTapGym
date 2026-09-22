@@ -3,10 +3,15 @@ const Workoutdays = require("../models/workoutdays.model");
 const getErrorMessage = (error) => error.sqlMessage || error.message;
 const isPositiveId = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
-const validateDayName = (body) =>
-  typeof body?.dayName === "string" && body.dayName.trim()
-    ? null
-    : "Tên ngày tập không được để trống";
+const validateDayName = (body) => {
+  if (typeof body?.dayName !== "string" || !body.dayName.trim())
+    return "Tên ngày tập không được để trống";
+  if (body.dayName.trim().length > 100) return "Tên ngày tập tối đa 100 ký tự";
+  if (body.weekDay != null &&
+      (!Number.isInteger(body.weekDay) || body.weekDay < 1 || body.weekDay > 7))
+    return "Ngày trong tuần phải là số nguyên từ 1 đến 7 hoặc NULL";
+  return null;
+};
 
 const WorkoutdaysController = {
   addWithProcedure: async (req, res) => {
@@ -19,6 +24,7 @@ const WorkoutdaysController = {
       const result = await Workoutdays.addWithProcedure(
         Number(req.params.planId),
         req.body.dayName.trim(),
+        req.body.weekDay ?? null,
       );
       return res.status(201).json({
         message: result?.message || "Thêm ngày tập thành công",
@@ -26,7 +32,7 @@ const WorkoutdaysController = {
       });
     } catch (error) {
       return res
-        .status(500)
+        .status(error.sqlState === "45000" ? 400 : 500)
         .json({ message: getErrorMessage(error) || "Thêm ngày tập thất bại" });
     }
   },
@@ -41,13 +47,14 @@ const WorkoutdaysController = {
       const result = await Workoutdays.updateWithProcedure(
         Number(req.params.dayId),
         req.body.dayName.trim(),
+        req.body.weekDay ?? null,
       );
       return res.json({
         message: result?.message || "Cập nhật ngày tập thành công",
         data: result,
       });
     } catch (error) {
-      return res.status(500).json({
+      return res.status(error.sqlState === "45000" ? 400 : 500).json({
         message: getErrorMessage(error) || "Cập nhật ngày tập thất bại",
       });
     }

@@ -1,6 +1,9 @@
+import { DataState } from "@/components/common/data-state";
+import { useApiData } from "@/hooks/use-api-data";
+import { formatDate, formatNumber, Period, ProgressSummary, WorkoutHistory, userApi } from "@/services/user-api";
 import { SharedHeader } from "@/components/common/shared-header";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = {
@@ -17,248 +20,130 @@ const colors = {
   orange: "#FF8B2B",
 };
 
-const sets = [
-  ["Hiệp 1", "50kg ×", "10"],
-  ["Hiệp 2", "55kg ×", "10"],
-  ["Hiệp 3 (PR)", "60kg ×", "8"],
-] as const;
-
-function OverviewCard() {
+function OverviewCard({ summary }: { summary: ProgressSummary | null }) {
   return (
     <View style={styles.overviewCard}>
       <View style={styles.overviewItem}>
         <Text style={styles.overviewIcon}>⌁</Text>
         <Text style={styles.overviewLabel}>Buổi tập</Text>
-        <Text style={styles.overviewValue}>24</Text>
+        <Text style={styles.overviewValue}>{formatNumber(summary?.totalSessions)}</Text>
         <Text style={styles.overviewHint}>Tổng số</Text>
       </View>
       <View style={styles.overviewItem}>
         <Text style={styles.overviewIcon}>♧</Text>
         <Text style={styles.overviewLabel}>Khối lượng</Text>
-        <Text style={styles.overviewValue}>142.8</Text>
+        <Text style={styles.overviewValue}>{formatNumber(summary?.totalVolumeTon)}</Text>
         <Text style={styles.overviewHint}>Tấn tập</Text>
       </View>
       <View style={styles.overviewItem}>
         <Text style={styles.overviewIcon}>♨</Text>
         <Text style={styles.overviewLabel}>Chuỗi ngày</Text>
         <Text style={[styles.overviewValue, styles.orangeValue]}>
-          5 <Text style={styles.fire}>ngày 🔥</Text>
+          {formatNumber(summary?.currentStreak)} <Text style={styles.fire}>ngày 🔥</Text>
         </Text>
-        <Text style={styles.overviewHint}>Kỷ lục tuần</Text>
+        <Text style={styles.overviewHint}>Liên tiếp hiện tại</Text>
       </View>
     </View>
   );
 }
 
-function SetBoxes({ highlight }: { highlight?: boolean }) {
-  return (
-    <View style={styles.setRow}>
-      {sets.map(([label, value, reps], index) => (
-        <View
-          key={label}
-          style={[styles.setBox, highlight && index === 2 && styles.prSetBox]}
-        >
-          <Text style={styles.setLabel}>{label}</Text>
-          <Text
-            style={[
-              styles.setValue,
-              highlight && index === 2 && styles.prSetValue,
-            ]}
-          >
-            {value}
-          </Text>
-          <Text
-            style={[
-              styles.setValue,
-              highlight && index === 2 && styles.prSetValue,
-            ]}
-          >
-            {reps}
-          </Text>
-        </View>
-      ))}
+function WorkoutDetails({ id }: { id: number }) {
+  const state = useApiData((signal) => userApi.workoutDetail(id, signal), String(id));
+  return <View style={styles.detailBlock}>
+    <View style={styles.detailHeader}>
+      <Text style={styles.detailHeaderTitle}>CHI TIẾT PHIÊN TẬP LUYỆN</Text>
     </View>
-  );
-}
-
-function DetailExercise({
-  number,
-  title,
-  record,
-  highlight,
-}: {
-  number: string;
-  title: string;
-  record?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <View style={styles.detailExercise}>
+    <DataState {...state} retry={state.refresh} empty={!!state.data && !state.data.exercises.length && "Chưa có chi tiết bài tập"} />
+    {state.data?.exercises.map((exercise, index) => <View key={exercise.performedExerciseId} style={styles.detailExercise}>
       <View style={styles.detailTitleRow}>
-        <Text style={styles.numberBadge}>{number}</Text>
-        <Text numberOfLines={1} style={styles.detailTitle}>
-          {title}
-        </Text>
-        {record ? (
-          <Text style={styles.recordBadge}>{record}</Text>
-        ) : (
-          <Text style={styles.setCount}>3 hiệp</Text>
-        )}
+        <Text style={styles.numberBadge}>{index + 1}</Text>
+        <Text numberOfLines={1} style={styles.detailTitle}>{exercise.exerciseName}</Text>
+        <Text style={styles.setCount}>{exercise.sets.length} hiệp</Text>
       </View>
-      <SetBoxes highlight={highlight} />
-    </View>
-  );
+      <View style={styles.setRow}>
+        {exercise.sets.map((set) => <View key={set.setId} style={styles.setBox}>
+          <Text style={styles.setLabel}>Hiệp {set.setNumber}</Text>
+          <Text style={styles.setValue}>{formatNumber(set.weight)}kg ×</Text>
+          <Text style={styles.setValue}>{set.reps ?? "—"}</Text>
+        </View>)}
+        {!exercise.sets.length && <Text style={styles.setLabel}>Chưa ghi nhận hiệp tập</Text>}
+      </View>
+    </View>)}
+  </View>;
 }
 
-function PushWorkout() {
-  const [expanded, setExpanded] = useState(true);
-  return (
-    <View style={styles.workoutCard}>
-      <Pressable onPress={() => setExpanded(!expanded)}>
-        <View style={styles.workoutTopLine}>
-          <Text style={styles.dateText}>● 21 THÁNG 7 • 08:30 (HÔM NAY)</Text>
-          <Text style={styles.completeBadge}>✓ Hoàn thành</Text>
-        </View>
-        <View style={styles.workoutTitleRow}>
-          <View>
-            <Text style={styles.workoutTitle}>Push Day</Text>
-            <View style={styles.workoutStats}>
-              <Text style={styles.workoutStatsText}>◷ 45 phút</Text>
-              <Text style={styles.workoutStatsText}>• ♧ 12.5 Tấn</Text>
-              <Text style={styles.workoutStatsText}>• 5 bài tập</Text>
-            </View>
-          </View>
-          <View style={styles.prColumn}>
-            <Text style={styles.prBadge}>★ PR MỚI</Text>
-            <Text style={styles.prBench}>Bench 60 KG</Text>
-          </View>
-        </View>
-      </Pressable>
-      {expanded && (
-        <View style={styles.detailBlock}>
-          <View style={styles.detailHeader}>
-            <Text style={styles.detailHeaderTitle}>
-              CHI TIẾT PHIÊN TẬP LUYỆN
-            </Text>
-            <Text style={styles.heartLink}>Xem biểu đồ nhịp tim</Text>
-          </View>
-          <DetailExercise
-            number="1"
-            title="Bench Press (Đẩy ngực phẳng)"
-            record="★ Kỷ lục mới"
-            highlight
-          />
-          <DetailExercise number="2" title="Incline Dumbbell Press" />
-          <DetailExercise number="3" title="Overhead Shoulder Press" />
-          <View style={styles.workoutFooter}>
-            <Text style={styles.shareText}>⌯ Chia sẻ buổi tập</Text>
-            <Pressable onPress={() => setExpanded(false)}>
-              <Text style={styles.collapseText}>Thu gọn tóm tắt ˆ</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
-function CompactWorkout({
-  title,
-  date,
-  stats,
-  tags,
-  footer,
-  icon,
-}: {
-  title: string;
-  date: string;
-  stats: string;
-  tags: string[];
-  footer: string;
-  icon: string;
-}) {
-  return (
-    <View style={styles.compactCard}>
-      <View style={styles.compactTop}>
-        <Text style={styles.compactDate}>{date}</Text>
-        <Text style={styles.savedBadge}>✓ Đã lưu</Text>
+function HistoryCard({ workout, first }: { workout: WorkoutHistory; first: boolean }) {
+  const [expanded, setExpanded] = useState(first);
+  const duration = workout.endTime ? Math.max(0, Math.round((new Date(workout.endTime).getTime() - new Date(workout.startTime).getTime()) / 60000)) : null;
+  const stats = `◷ ${duration == null ? "—" : duration} phút   •   ♧ ${formatNumber(Number(workout.totalVolume) / 1000)} Tấn   •   ${workout.totalExercises} bài tập`;
+  return <View style={first ? styles.workoutCard : styles.compactCard}>
+    <Pressable onPress={() => setExpanded(!expanded)}>
+      <View style={first ? styles.workoutTopLine : styles.compactTop}>
+        <Text style={first ? styles.dateText : styles.compactDate}>{formatDate(workout.startTime)}</Text>
+        <Text style={first ? styles.completeBadge : styles.savedBadge}>✓ Hoàn thành</Text>
       </View>
-      <View style={styles.compactTitleRow}>
+      <View style={first ? styles.workoutTitleRow : styles.compactTitleRow}>
         <View>
-          <Text style={styles.compactTitle}>{title}</Text>
-          <Text style={styles.compactStats}>{stats}</Text>
+          <Text style={first ? styles.workoutTitle : styles.compactTitle}>{workout.dayName || workout.planTitle || "Buổi tập"}</Text>
+          <Text style={first ? styles.workoutStatsText : styles.compactStats}>{stats}</Text>
         </View>
-        <Text style={styles.compactIcon}>{icon}</Text>
       </View>
-      <View style={styles.tags}>
-        {tags.map((tag) => (
-          <Text key={tag} style={styles.tag}>
-            {tag}
-          </Text>
-        ))}
-      </View>
-      <View style={styles.compactFooter}>
-        <Text style={styles.compactHint}>{footer}</Text>
-        <Text style={styles.detailLink}>Xem chi tiết ›</Text>
-      </View>
-    </View>
-  );
+      {!first && <View style={styles.compactFooter}>
+        <Text style={styles.compactHint}>{workout.planTitle || "—"}</Text>
+        <Text style={styles.detailLink}>{expanded ? "Thu gọn ˆ" : "Xem chi tiết ›"}</Text>
+      </View>}
+    </Pressable>
+    {expanded && <WorkoutDetails id={workout.workoutSessionId} />}
+    {expanded && first && <View style={styles.workoutFooter}>
+      <Text style={styles.shareText}>{workout.planTitle || "—"}</Text>
+      <Pressable onPress={() => setExpanded(false)}><Text style={styles.collapseText}>Thu gọn tóm tắt ˆ</Text></Pressable>
+    </View>}
+  </View>;
 }
 
 export default function ProgressScreen() {
+  const [period, setPeriod] = useState<Period>("ALL");
+  const overview = useApiData(async (signal) => {
+    const [summary, records] = await Promise.all([userApi.progressSummary(signal), userApi.personalRecords(signal)]);
+    return { summary, records };
+  });
+  const history = useApiData((signal) => userApi.history(period, signal), period);
+  const refresh = () => Promise.all([overview.refresh(), history.refresh()]);
+  const filters: [Period, string][] = [["ALL", "Tất cả"], ["WEEK", "Tuần này"], ["MONTH", "Tháng này"]];
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={overview.loading || history.loading} onRefresh={refresh} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <SharedHeader
-          title="Tiến Trình"
-          parentHorizontalPadding={17}
-          parentTopPadding={9}
-        />
-        <OverviewCard />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          <Text style={styles.activeFilter}>▦ Tất cả (24)</Text>
-          <Text style={styles.filter}>▣ Tuần này</Text>
-          <Text style={styles.filter}>▣ Tháng này</Text>
+        <SharedHeader title="Tiến Trình" parentHorizontalPadding={17} parentTopPadding={9} />
+        <DataState {...overview} retry={overview.refresh} empty={!!overview.data && !overview.data.summary?.totalSessions && "Chưa có dữ liệu tiến trình"} />
+        {overview.data && <OverviewCard summary={overview.data.summary} />}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {filters.map(([value, label]) => <Pressable key={value} onPress={() => setPeriod(value)}>
+            <Text style={period === value ? styles.activeFilter : styles.filter}>
+              ▣ {label}{value === "ALL" && overview.data?.summary ? ` (${overview.data.summary.totalSessions})` : ""}
+            </Text>
+          </Pressable>)}
         </ScrollView>
-        <PushWorkout />
-        <CompactWorkout
-          title="Pull Day"
-          date="18 THÁNG 7 • 17:45 (THỨ SÁU)"
-          stats="◷ 50 phút   •   ♧ 15.2 TẤN   •   6 bài tập"
-          tags={[
-            "Deadlift (120kg)",
-            "Lat Pulldown",
-            "Barbell Row",
-            "Bicep Curls",
-          ]}
-          footer="4 hiệp mỗi bài • Nghỉ 90s"
-          icon="↗"
-        />
-        <CompactWorkout
-          title="Leg Day"
-          date="16 THÁNG 7 • 07:15 (THỨ TƯ)"
-          stats="◷ 55 phút   •   ♧ 18.0 TẤN   •   5 bài tập"
-          tags={[
-            "Barbell Squat (100kg)",
-            "Leg Press (240kg)",
-            "Romanian Deadlift",
-          ]}
-          footer="Khối lượng cao nhất tháng"
-          icon="♨"
-        />
-        <Pressable style={styles.previousButton}>
-          <Text style={styles.previousText}>
-            ◴ Xem các tuần trước (19 buổi tập)
-          </Text>
+        <DataState {...history} retry={history.refresh} empty={!!history.data && !history.data.length && "Chưa có lịch sử tập luyện trong khoảng thời gian này"} />
+        {history.data?.map((workout, index) => <HistoryCard key={workout.workoutSessionId} workout={workout} first={index === 0} />)}
+        {overview.data && <View style={styles.workoutCard}>
+          <View style={styles.detailHeader}><Text style={styles.detailHeaderTitle}>PERSONAL RECORD</Text></View>
+          {!overview.data.records.length && <Text style={styles.compactHint}>Chưa có Personal Record</Text>}
+          {overview.data.records.map((record) => <View key={record.exerciseId} style={styles.detailExercise}>
+            <View style={styles.detailTitleRow}>
+              <Text style={styles.detailTitle}>{record.exerciseName}</Text>
+              <Text style={styles.recordBadge}>★ {formatNumber(record.maxWeight)} KG</Text>
+            </View>
+            <Text style={styles.compactHint}>Tập gần nhất: {formatDate(record.latestWorkout)}</Text>
+          </View>)}
+        </View>}
+        <Pressable style={styles.previousButton} onPress={() => { void refresh(); }}>
+          <Text style={styles.previousText}>◴ Làm mới dữ liệu</Text>
         </Pressable>
-        <Text style={styles.cloudText}>Tải thêm dữ liệu đồng bộ đám mây</Text>
+        <Text style={styles.cloudText}>{history.data ? `${history.data.length} buổi tập` : ""}</Text>
       </ScrollView>
     </SafeAreaView>
   );

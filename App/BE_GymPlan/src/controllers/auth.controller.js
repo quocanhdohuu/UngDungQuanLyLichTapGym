@@ -1,4 +1,5 @@
 const Auth = require("../models/auth.model");
+const { issueToken } = require("../services/userSessionService");
 
 const AuthController = {
   register: (req, res) => {
@@ -41,10 +42,11 @@ const AuthController = {
         });
       }
 
-      res.status(200).json({
-        message: "Đăng nhập thành công",
-        data: result,
-      });
+      const data = result?.role === "GYM_USER"
+        ? { ...result, accessToken: issueToken(result) }
+        : result;
+      if (result?.role === "GYM_USER") delete data.password;
+      res.status(200).json({ message: "Đăng nhập thành công", data });
     });
   },
 

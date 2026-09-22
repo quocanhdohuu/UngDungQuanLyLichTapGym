@@ -1,3 +1,4 @@
+import { initials, useAuthSession } from "@/auth-session";
 import { SymbolView } from "expo-symbols";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -22,6 +23,7 @@ export function SharedHeader({
   showNotificationDot = true,
   onAvatarPress,
 }: SharedHeaderProps) {
+  const session = useAuthSession();
   return (
     <View
       style={[
@@ -61,7 +63,7 @@ export function SharedHeader({
           onPress={onAvatarPress}
           style={styles.avatar}
         >
-          <Text style={styles.avatarText}>QA</Text>
+          <Text style={styles.avatarText}>{initials(session?.fullName)}</Text>
         </Pressable>
       </View>
     </View>

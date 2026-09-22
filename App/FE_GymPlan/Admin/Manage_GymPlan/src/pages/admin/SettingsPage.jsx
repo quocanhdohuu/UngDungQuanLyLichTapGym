@@ -133,25 +133,6 @@ const SettingsPage = () => {
         eyebrow="Cấu hình"
         title="Cấu hình hệ thống"
         description="Thiết lập thông số vận hành, quy tắc tập luyện, dịch vụ thông báo và tích hợp bên thứ ba."
-        actions={
-          <div className="settings-status">
-            <div className="settings-sync">
-              <span>✓</span>
-              <div>
-                <strong>Đồng bộ thành công</strong>
-                <small>Cấu hình đã được lưu trên toàn cụm máy chủ.</small>
-              </div>
-              <b>×</b>
-            </div>
-            <div className="settings-cluster">
-              <i />{" "}
-              <div>
-                <strong>MASTER CLUSTER</strong>
-                <small>SGP1-Node-Alpha (Live)</small>
-              </div>
-            </div>
-          </div>
-        }
       />
 
       <div className="settings-tabs">

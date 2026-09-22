@@ -9,13 +9,15 @@ import { useEffect, useMemo, useState } from "react";
 const API_BASE_URL = "http://localhost:3000";
 const DEFAULT_ADMIN_ID = 2;
 const LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
+const WEEK_DAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"];
 const emptyPlanForm = {
   title: "",
   description: "",
   level: "BEGINNER",
   isTemplate: true,
+  durationWeeks: "",
 };
-const emptyDayForm = { dayName: "" };
+const emptyDayForm = { dayName: "", weekDay: "" };
 const emptyExerciseForm = { exerciseId: "", sets: 1, reps: 1, restTime: 0 };
 
 const getErrorMessage = async (response) => {
@@ -35,6 +37,49 @@ const request = async (path, options = {}) => {
   if (!response.ok) throw new Error(await getErrorMessage(response));
   return response.json();
 };
+
+const getExercisePreviewMedia = (media = []) => {
+  const sortedMedia = [...media]
+    .filter((item) => item?.mediaUrl)
+    .sort(
+      (a, b) =>
+        Number(a.sortOrder) - Number(b.sortOrder) ||
+        Number(a.mediaId) - Number(b.mediaId),
+    );
+  return (
+    sortedMedia.find((item) => item.mediaType === "IMAGE") ||
+    sortedMedia.find((item) => item.mediaType === "VIDEO") ||
+    null
+  );
+};
+
+function ExercisePreview({ media }) {
+  const [failed, setFailed] = useState(false);
+  const previewMedia = getExercisePreviewMedia(media);
+
+  if (!previewMedia || failed) return <span className="workout-thumb" />;
+
+  if (previewMedia.mediaType === "VIDEO") {
+    return (
+      <video
+        className="workout-thumb"
+        src={previewMedia.mediaUrl}
+        muted
+        preload="metadata"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <img
+      className="workout-thumb"
+      src={previewMedia.mediaUrl}
+      alt=""
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 function Modal({ title, children, onClose }) {
   return (
@@ -73,14 +118,20 @@ function DayCard({
     (a, b) => Number(a.exerciseOrder) - Number(b.exerciseOrder),
   );
   return (
-    <section className={`admin-card admin-card--flush workout-day-card ${collapsed ? "collapsed" : ""}`}>
+    <section
+      className={`admin-card admin-card--flush workout-day-card ${collapsed ? "collapsed" : ""}`}
+    >
       <div className="workout-day-header">
         <span className="workout-grip">
           <AdminIcon name="grip" />
         </span>
-        <span className="admin-badge admin-badge--primary">DAY {day.dayOrder}</span>
+        <span className="admin-badge admin-badge--primary">
+          DAY {day.dayOrder}
+        </span>
         <strong>{day.dayName}</strong>
-        <span className="workout-day-meta">{exercises.length} bài tập</span>
+        <span className="workout-day-meta">
+          {day.weekDay == null ? "Chưa xếp thứ" : WEEK_DAYS[Number(day.weekDay) - 1]} • {exercises.length} bài tập
+        </span>
         <button
           type="button"
           className="admin-button admin-button--ghost"
@@ -112,7 +163,7 @@ function DayCard({
                 <span className="workout-row-grip">
                   <AdminIcon name="grip" />
                 </span>
-                <span className="workout-thumb" />
+                <ExercisePreview media={exercise.media} />
                 <div className="workout-exercise-name">
                   <strong>{exercise.exerciseName}</strong>
                   <span>
@@ -137,9 +188,7 @@ function DayCard({
               </div>
             ))}
             {exercises.length === 0 && (
-              <div className="admin-empty">
-                Chưa có bài tập trong ngày này.
-              </div>
+              <div className="admin-empty">Chưa có bài tập trong ngày này.</div>
             )}
           </div>
           <button
@@ -299,6 +348,7 @@ const WorkoutTemplatesPage = () => {
             description: planDetail.description || "",
             level: planDetail.level || "BEGINNER",
             isTemplate: Boolean(planDetail.isTemplate),
+            durationWeeks: planDetail.durationWeeks ?? "",
           }
         : emptyPlanForm,
     );
@@ -311,6 +361,9 @@ const WorkoutTemplatesPage = () => {
     setFormError("");
     if (!form.title.trim())
       return setFormError("Tên chương trình không được để trống");
+    const durationWeeks = Number(form.durationWeeks);
+    if (!Number.isInteger(durationWeeks) || durationWeeks <= 0 || durationWeeks > 2147483647)
+      return setFormError("Số tuần của chương trình phải là số nguyên lớn hơn 0");
     setSaving(true);
     try {
       const result = await request(
@@ -321,6 +374,7 @@ const WorkoutTemplatesPage = () => {
           method: modal === "create" ? "POST" : "PUT",
           body: JSON.stringify({
             ...form,
+            durationWeeks,
             ...(modal === "create" ? { creatorId: DEFAULT_ADMIN_ID } : {}),
           }),
         },
@@ -361,6 +415,22 @@ const WorkoutTemplatesPage = () => {
       setSaving(false);
     }
   };
+  const submitDay = (event) => {
+    event.preventDefault();
+    const weekDay = form.weekDay === "" || form.weekDay == null ? null : Number(form.weekDay);
+    if (!form.dayName?.trim()) return setFormError("Tên ngày tập không được để trống");
+    if (weekDay !== null && (!Number.isInteger(weekDay) || weekDay < 1 || weekDay > 7))
+      return setFormError("Ngày trong tuần phải từ 1 đến 7 hoặc để trống");
+    const adding = modal === "add-day";
+    return submitAction(
+      event,
+      adding ? `/workoutdays/plan/${selectedPlanId}` : `/workoutdays/${form.dayId}/procedure`,
+      { dayName: form.dayName.trim(), weekDay },
+      adding ? "Đã thêm ngày tập." : "Đã cập nhật ngày tập.",
+      adding,
+      adding ? "POST" : "PUT",
+    );
+  };
   const formField = (label, key, type = "text") => (
     <label className="admin-form-field">
       {label}
@@ -369,6 +439,7 @@ const WorkoutTemplatesPage = () => {
         value={form[key]}
         onChange={(event) => updateForm(key, event.target.value)}
         required={key !== "description"}
+        maxLength={key === "title" ? 150 : undefined}
       />
     </label>
   );
@@ -448,7 +519,7 @@ const WorkoutTemplatesPage = () => {
                       <strong>{template.title}</strong>
                       <span className="admin-badge">{template.level}</span>
                     </div>
-                    <small>{template.totalDays || 0} ngày tập</small>
+                    <small>{template.totalDays || 0} ngày tập • {template.durationWeeks ?? "—"} tuần</small>
                   </button>
                 ))
               )}
@@ -468,7 +539,7 @@ const WorkoutTemplatesPage = () => {
                 </button>
               </div>
               <h2>{planDetail.title}</h2>
-              <small>Plan ID: {planDetail.planId}</small>
+              <small>Plan ID: {planDetail.planId} • {planDetail.durationWeeks ?? "—"} tuần</small>
               <div className="workout-detail-stats">
                 <div>
                   Độ khó<strong>{planDetail.level}</strong>
@@ -507,9 +578,7 @@ const WorkoutTemplatesPage = () => {
           {detailLoading ? (
             <div className="admin-empty">Đang tải chi tiết...</div>
           ) : !planDetail ? (
-            <div className="admin-empty">
-              Chọn một giáo án để xem cấu trúc.
-            </div>
+            <div className="admin-empty">Chọn một giáo án để xem cấu trúc.</div>
           ) : planDetail.days?.length ? (
             [...planDetail.days]
               .sort((a, b) => Number(a.dayOrder) - Number(b.dayOrder))
@@ -561,6 +630,18 @@ const WorkoutTemplatesPage = () => {
             {formField("Tên chương trình", "title")}
             {formField("Mô tả", "description")}
             <label className="admin-form-field">
+              Số tuần của chương trình
+              <input
+                type="number"
+                min="1"
+                max="2147483647"
+                step="1"
+                value={form.durationWeeks}
+                onChange={(event) => updateForm("durationWeeks", event.target.value)}
+                required
+              />
+            </label>
+            <label className="admin-form-field">
               Trình độ
               <select
                 value={form.level}
@@ -590,7 +671,11 @@ const WorkoutTemplatesPage = () => {
               >
                 Hủy
               </button>
-              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
+              <button
+                type="submit"
+                className="admin-button admin-button--primary"
+                disabled={saving}
+              >
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
@@ -602,32 +687,26 @@ const WorkoutTemplatesPage = () => {
           title={modal === "add-day" ? "Thêm ngày tập" : "Sửa ngày tập"}
           onClose={() => setModal(null)}
         >
-          <form
-            onSubmit={(event) =>
-              modal === "add-day"
-                ? submitAction(
-                    event,
-                    `/workoutdays/plan/${selectedPlanId}`,
-                    { dayName: form.dayName },
-                    "Đã thêm ngày tập.",
-                  )
-                : submitAction(
-                    event,
-                    `/workoutdays/${form.dayId}/procedure`,
-                    { dayName: form.dayName },
-                    "Đã cập nhật ngày tập.",
-                  )
-            }
-          >
+          <form onSubmit={submitDay}>
             <label className="admin-form-field">
               Tên ngày tập
               <input
                 value={form.dayName || ""}
+                maxLength={100}
                 onChange={(event) =>
                   setForm({ ...form, dayName: event.target.value })
                 }
                 required
               />
+            </label>
+            <label className="admin-form-field">
+              Ngày trong tuần
+              <select value={form.weekDay ?? ""} onChange={(event) => updateForm("weekDay", event.target.value)}>
+                <option value="">Chưa xếp thứ</option>
+                {WEEK_DAYS.map((label, index) => (
+                  <option key={index + 1} value={index + 1}>{label}</option>
+                ))}
+              </select>
             </label>
             {formError && <div className="admin-form-error">{formError}</div>}
             <div className="admin-modal-actions">
@@ -638,7 +717,11 @@ const WorkoutTemplatesPage = () => {
               >
                 Hủy
               </button>
-              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
+              <button
+                type="submit"
+                className="admin-button admin-button--primary"
+                disabled={saving}
+              >
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
@@ -729,7 +812,11 @@ const WorkoutTemplatesPage = () => {
               >
                 Hủy
               </button>
-              <button type="submit" className="admin-button admin-button--primary" disabled={saving}>
+              <button
+                type="submit"
+                className="admin-button admin-button--primary"
+                disabled={saving}
+              >
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
             </div>

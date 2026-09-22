@@ -1,7 +1,12 @@
+import { DataState } from "@/components/common/data-state";
+import { useApiData } from "@/hooks/use-api-data";
+import { LibraryExercise, userApi } from "@/services/user-api";
 import { SharedHeader } from "@/components/common/shared-header";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import {
+  Image,
+  RefreshControl,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,125 +28,40 @@ const colors = {
   orange: "#FF9A32",
 };
 
-const filters = ["Tất cả", "Ngực", "Lưng", "Chân", "Vai", "Tay"];
-const muscleGroups = [
-  ["💪", "Ngực", "24 bài"],
-  ["🏋️", "Lưng", "28 bài"],
-  ["🦵", "Chân", "32 bài"],
-  ["⚡", "Vai", "18 bài"],
-  ["💥", "Tay", "22 bài"],
-  ["🔥", "Bụng", "16 bài"],
-] as const;
-
-const exercises = [
-  [
-    "NGỰC • BARBELL",
-    "Barbell Bench Press",
-    "Intermediate",
-    "Đẩy ngực ngang thanh đòn",
-    "145 kcal",
-    "4 sets",
-    "#153B35",
-  ],
-  [
-    "NGỰC TRÊN • DUMBBELL",
-    "Incline Dumbbell Press",
-    "Intermediate",
-    "Đẩy ngực trên tạ đơn",
-    "130 kcal",
-    "3-4 sets",
-    "#24404A",
-  ],
-  [
-    "ĐÙI TRƯỚC & MÔNG • BARBELL",
-    "Barbell Back Squat",
-    "Advanced",
-    "Gánh tạ đòn sau lưng",
-    "210 kcal",
-    "5 sets",
-    "#343D30",
-  ],
-  [
-    "LƯNG XÔ • MACHINE",
-    "Wide-Grip Lat Pulldown",
-    "Beginner",
-    "Kéo xô máy tay rộng",
-    "110 kcal",
-    "3 sets",
-    "#302E43",
-  ],
-  [
-    "VAI • BARBELL",
-    "Overhead Shoulder Press",
-    "Intermediate",
-    "Đẩy vai qua đầu với thanh đòn",
-    "160 kcal",
-    "4 sets",
-    "#263B48",
-  ],
-  [
-    "ĐÙI SAU / LƯNG • BARBELL",
-    "Romanian Deadlift (RDL)",
-    "Intermediate",
-    "Kéo tạ đùi sau kích hoạt chuỗi cơ...",
-    "190 kcal",
-    "4 sets",
-    "#303438",
-  ],
-  [
-    "TAY TRƯỚC • DUMBBELL",
-    "Incline DB Bicep Curl",
-    "Beginner",
-    "Cuốn bắp tay ghế dốc",
-    "95 kcal",
-    "3 sets",
-    "#24413C",
-  ],
-  [
-    "BỤNG / CORE • BODYWEIGHT",
-    "Hanging Leg Raise",
-    "Intermediate",
-    "Treo người gập bụng nâng chân",
-    "105 kcal",
-    "3 sets",
-    "#3B3028",
-  ],
-] as const;
-
 function ExerciseCard({
   exercise,
 }: {
-  exercise: readonly [string, string, string, string, string, string, string];
+  exercise: LibraryExercise;
 }) {
   const [bookmarked, setBookmarked] = useState(false);
   const levelStyle =
-    exercise[2] === "Beginner"
+    exercise.difficulty === "EASY"
       ? styles.beginner
-      : exercise[2] === "Advanced"
+      : exercise.difficulty === "HARD"
         ? styles.advanced
         : styles.intermediate;
 
   return (
     <View style={styles.exerciseCard}>
-      <View style={[styles.thumbnail, { backgroundColor: exercise[6] }]}>
-        <Text style={styles.thumbnailFigure}>⚒</Text>
+      <View style={[styles.thumbnail, { backgroundColor: "#153B35" }]}>
+        {exercise.preview ? <Image source={{ uri: exercise.preview }} style={{ width: "100%", height: "100%" }} /> : <Text style={styles.thumbnailFigure}>⚒</Text>}
       </View>
       <View style={styles.exerciseCopy}>
         <View style={styles.exerciseMetaTop}>
           <Text numberOfLines={1} style={styles.category}>
-            {exercise[0]}
+            {[exercise.primaryMuscles, exercise.equipment].filter(Boolean).join(" • ") || "Chưa phân loại"}
           </Text>
-          <Text style={[styles.level, levelStyle]}>{exercise[2]}</Text>
+          <Text style={[styles.level, levelStyle]}>{{ EASY: "Beginner", MEDIUM: "Intermediate", HARD: "Advanced" }[exercise.difficulty]}</Text>
         </View>
         <Text numberOfLines={1} style={styles.exerciseName}>
-          {exercise[1]}
+          {exercise.name}
         </Text>
         <Text numberOfLines={1} style={styles.description}>
-          {exercise[3]}
+          {exercise.description || "Chưa có mô tả"}
         </Text>
         <View style={styles.exerciseStats}>
-          <Text style={styles.stat}>◉ {exercise[4]}</Text>
-          <Text style={styles.stat}>◷ {exercise[5]}</Text>
+          <Text style={styles.stat}>◉ {exercise.primaryMuscles || "—"}</Text>
+          <Text style={styles.stat}>◷ {exercise.equipment || "—"}</Text>
         </View>
       </View>
       <Pressable
@@ -159,10 +79,23 @@ function ExerciseCard({
 
 export default function TemplatesScreen() {
   const [activeFilter, setActiveFilter] = useState("Tất cả");
+  const [search, setSearch] = useState("");
+  const state = useApiData(userApi.library);
+  const exercises = state.data || [];
+  const groupsOf = (exercise: LibraryExercise) => (exercise.primaryMuscles || "").split(",").map((name) => name.trim()).filter(Boolean);
+  const groupNames = Array.from(new Set(exercises.flatMap(groupsOf)));
+  const filters = ["Tất cả", ...groupNames];
+  const muscleGroups = groupNames.map((name) => ["💪", name, `${exercises.filter((exercise) => groupsOf(exercise).includes(name)).length} bài`]);
+  const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
+  const visibleExercises = exercises.filter((exercise) =>
+    (activeFilter === "Tất cả" || groupsOf(exercise).includes(activeFilter)) &&
+    normalize(`${exercise.name} ${exercise.description || ""} ${exercise.primaryMuscles || ""} ${exercise.equipment || ""}`).includes(normalize(search.trim())));
+
 
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -174,8 +107,10 @@ export default function TemplatesScreen() {
         <Text style={styles.eyebrow}>KHÁM PHÁ &amp; XÂY DỰNG SỨC MẠNH</Text>
         <Text style={styles.heading}>THƯ VIỆN</Text>
         <Text style={styles.intro}>
-          Hơn 300 bài tập chuẩn kỹ thuật kèm video 4K và{`\n`}hướng dẫn chi tiết
+          {state.data ? `${exercises.length} bài tập trong thư viện` : "Khám phá bài tập và hướng dẫn chi tiết"}
         </Text>
+
+        <DataState {...state} retry={state.refresh} empty={!!state.data && !exercises.length && "Chưa có bài tập trong thư viện"} />
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
@@ -191,13 +126,15 @@ export default function TemplatesScreen() {
             <TextInput
               placeholder="Tìm kiếm bài tập (vd: Bench, Squa..."
               placeholderTextColor={colors.muted}
+              value={search}
+              onChangeText={setSearch}
               style={styles.searchInput}
             />
-            <Text style={styles.clear}>×</Text>
+            <Text style={styles.clear} onPress={() => setSearch("")}>×</Text>
           </View>
           <Pressable style={styles.filterButton}>
             <Text style={styles.filterIcon}>☷</Text>
-            <Text style={styles.filterDot}>2</Text>
+            <Text style={styles.filterDot}>{activeFilter === "Tất cả" ? 0 : 1}</Text>
           </Pressable>
         </View>
 
@@ -227,30 +164,17 @@ export default function TemplatesScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>NHÓM CƠ</Text>
-          <Text style={styles.sectionAction}>Xem giải phẫu</Text>
-        </View>
-        <View style={styles.muscleGrid}>
-          {muscleGroups.map(([icon, name, count]) => (
-            <Pressable key={name} style={styles.muscleCard}>
-              <Text style={styles.muscleIcon}>{icon}</Text>
-              <Text style={styles.muscleName}>{name}</Text>
-              <Text style={styles.muscleCount}>{count}</Text>
-            </Pressable>
-          ))}
-        </View>
-
         <View style={[styles.sectionHeader, styles.exerciseHeader]}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>DANH SÁCH BÀI TẬP</Text>
-            <Text style={styles.countBadge}>24 bài tập</Text>
+            <Text style={styles.countBadge}>{visibleExercises.length} bài tập</Text>
           </View>
-          <Text style={styles.sortText}>≡ Phổ biến nhất</Text>
+          <Text style={styles.sortText}>≡ Danh sách bài tập</Text>
         </View>
         <View style={styles.exerciseList}>
-          {exercises.map((exercise) => (
-            <ExerciseCard key={exercise[1]} exercise={exercise} />
+          {!!exercises.length && !visibleExercises.length && <Text style={styles.description}>Không tìm thấy bài tập phù hợp</Text>}
+          {visibleExercises.map((exercise) => (
+            <ExerciseCard key={exercise.exerciseId} exercise={exercise} />
           ))}
         </View>
       </ScrollView>

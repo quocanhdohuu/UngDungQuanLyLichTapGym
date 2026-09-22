@@ -33,6 +33,13 @@ Workoutplans.getDetail = async (planId) => {
     .query("CALL sp_GetWorkoutPlanDetail(?)", [planId]);
   const plan = result[0]?.[0];
   if (!plan) return null;
+  const mediaByExerciseId = new Map();
+  (result[2] || []).forEach((row) => {
+    if (!mediaByExerciseId.has(row.exerciseId)) {
+      mediaByExerciseId.set(row.exerciseId, []);
+    }
+    mediaByExerciseId.get(row.exerciseId).push(row);
+  });
   const days = new Map();
   (result[1] || []).forEach((row) => {
     if (!days.has(row.dayId))
@@ -40,22 +47,26 @@ Workoutplans.getDetail = async (planId) => {
         dayId: row.dayId,
         dayName: row.dayName,
         dayOrder: row.dayOrder,
+        weekDay: row.weekDay,
         exercises: [],
       });
     if (row.configId !== null && row.configId !== undefined) {
-      days
-        .get(row.dayId)
-        .exercises.push({
-          configId: row.configId,
-          exerciseId: row.exerciseId,
-          exerciseName: row.exerciseName,
-          exerciseDescription: row.exerciseDescription,
-          difficulty: row.difficulty,
-          sets: row.sets,
-          reps: row.reps,
-          restTime: row.restTime,
-          exerciseOrder: row.exerciseOrder,
-        });
+      days.get(row.dayId).exercises.push({
+        configId: row.configId,
+        exerciseId: row.exerciseId,
+        exerciseName: row.exerciseName,
+        exerciseDescription: row.exerciseDescription,
+        difficulty: row.difficulty,
+        sets: row.sets,
+        reps: row.reps,
+        restTime: row.restTime,
+        exerciseOrder: row.exerciseOrder,
+        media: [...(mediaByExerciseId.get(row.exerciseId) || [])].sort(
+          (a, b) =>
+            Number(a.sortOrder) - Number(b.sortOrder) ||
+            Number(a.mediaId) - Number(b.mediaId),
+        ),
+      });
     }
   });
   return { ...plan, days: Array.from(days.values()) };
@@ -64,12 +75,13 @@ Workoutplans.getDetail = async (planId) => {
 Workoutplans.createWithProcedure = async (data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_CreateWorkoutPlan(?, ?, ?, ?, ?)", [
+    .query("CALL sp_CreateWorkoutPlan(?, ?, ?, ?, ?, ?)", [
       data.title,
       data.description,
       data.creatorId,
       data.isTemplate,
       data.level,
+      data.durationWeeks,
     ]);
   return result[0]?.[0] || null;
 };
@@ -77,12 +89,13 @@ Workoutplans.createWithProcedure = async (data) => {
 Workoutplans.updateWithProcedure = async (planId, data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_UpdateWorkoutPlan(?, ?, ?, ?, ?)", [
+    .query("CALL sp_UpdateWorkoutPlan(?, ?, ?, ?, ?, ?)", [
       planId,
       data.title,
       data.description,
       data.level,
       data.isTemplate,
+      data.durationWeeks,
     ]);
   return result[0]?.[0] || null;
 };

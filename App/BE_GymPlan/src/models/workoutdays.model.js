@@ -17,17 +17,17 @@ Workoutdays.getById = (dayId, callback) => {
   });
 };
 
-Workoutdays.addWithProcedure = async (planId, dayName) => {
+Workoutdays.addWithProcedure = async (planId, dayName, weekDay) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_AddWorkoutDay(?, ?)", [planId, dayName]);
+    .query("CALL sp_AddWorkoutDay(?, ?, ?)", [planId, dayName, weekDay]);
   return result[0]?.[0] || null;
 };
 
-Workoutdays.updateWithProcedure = async (dayId, dayName) => {
+Workoutdays.updateWithProcedure = async (dayId, dayName, weekDay) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_UpdateWorkoutDay(?, ?)", [dayId, dayName]);
+    .query("CALL sp_UpdateWorkoutDay(?, ?, ?)", [dayId, dayName, weekDay]);
   return result[0]?.[0] || null;
 };
 

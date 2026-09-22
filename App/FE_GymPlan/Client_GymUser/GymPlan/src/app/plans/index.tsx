@@ -1,6 +1,9 @@
+import { DataState } from "@/components/common/data-state";
+import { useApiData } from "@/hooks/use-api-data";
+import { ActivePlan, PlanExercise, levelLabel, userApi } from "@/services/user-api";
 import { SharedHeader } from "@/components/common/shared-header";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const colors = {
@@ -16,32 +19,26 @@ const colors = {
   red: "#FF9D9D",
 };
 
-const exercises = [
-  ["Barbell Bench Press", "4 × 10", "60 KG", "90s nghỉ", "#173331"],
-  ["Incline Dumbbell Press", "3 × 12", "22 KG", "60s nghỉ", "#26333B"],
-  ["Overhead Shoulder Press", "3 × 10", "20 KG", "60s nghỉ", "#273239"],
-  ["Dips / Triceps", "3 × 15", "15 KG", "45s nghỉ", "#342E2B"],
-] as const;
-
-function RoutineCard() {
+function RoutineCard({ plan }: { plan: ActivePlan }) {
+  const percent = plan.totalDays ? Math.min(100, Math.round(plan.completedThisWeek / plan.totalDays * 100)) : 0;
   return (
     <View style={styles.routineCard}>
       <View style={styles.routineTop}>
         <View>
           <Text style={styles.routineLabel}>CURRENT ROUTINE</Text>
-          <Text style={styles.routineName}>Push Pull Legs</Text>
+          <Text style={styles.routineName}>{plan.title}</Text>
           <Text style={styles.routineSubtitle}>
-            PPL 6-Day Hypertrophy Split
+            {plan.description || "—"}
           </Text>
         </View>
-        <Text style={styles.levelBadge}>Intermediate</Text>
+        <Text style={styles.levelBadge}>{levelLabel(plan.level)}</Text>
       </View>
       <View style={styles.routineProgressHeader}>
-        <Text style={styles.weekText}>♨ Tuần 4 / 8</Text>
-        <Text style={styles.completeText}>Hoàn thành 75%</Text>
+        <Text style={styles.weekText}>♨ Tuần {plan.currentWeek} / {plan.durationWeeks}</Text>
+        <Text style={styles.completeText}>Hoàn thành {percent}%</Text>
       </View>
       <View style={styles.progressTrack}>
-        <View style={styles.progressFill} />
+        <View style={[styles.progressFill, { width: `${percent}%` }]} />
       </View>
     </View>
   );
@@ -50,23 +47,25 @@ function RoutineCard() {
 function ExerciseRow({
   exercise,
 }: {
-  exercise: readonly [string, string, string, string, string];
+  exercise: PlanExercise;
 }) {
   return (
     <View style={styles.exerciseRow}>
       <Text style={styles.dragHandle}>⁙</Text>
-      <View style={[styles.thumbnail, { backgroundColor: exercise[4] }]}>
-        <Text style={styles.thumbnailIcon}>⚒</Text>
+      <View style={[styles.thumbnail, { backgroundColor: "#173331" }]}>
+        {exercise.media?.find((item) => item.mediaType === "IMAGE") ?
+          <Image source={{ uri: exercise.media.find((item) => item.mediaType === "IMAGE")!.mediaUrl }} style={{ width: "100%", height: "100%" }} /> :
+          <Text style={styles.thumbnailIcon}>⚒</Text>}
       </View>
       <View style={styles.exerciseCopy}>
         <Text numberOfLines={1} style={styles.exerciseName}>
-          {exercise[0]}
+          {exercise.exerciseName}
         </Text>
         <View style={styles.exerciseStats}>
-          <Text style={styles.sets}>{exercise[1]}</Text>
-          <Text style={styles.weight}>• {exercise[2]}</Text>
+          <Text style={styles.sets}>{exercise.sets} × {exercise.reps}</Text>
+          <Text style={styles.weight}>• {exercise.sets} sets</Text>
         </View>
-        <Text style={styles.rest}>• {exercise[3]}</Text>
+        <Text style={styles.rest}>• {exercise.restTime}s nghỉ</Text>
       </View>
       <View style={styles.exerciseActions}>
         <Pressable hitSlop={8}>
@@ -85,12 +84,16 @@ function WorkoutDay({
   details,
   icon,
   expanded,
+  exercises,
+  today,
   onPress,
 }: {
   title: string;
   details: string;
   icon: string;
   expanded: boolean;
+  exercises: PlanExercise[];
+  today: boolean;
   onPress: () => void;
 }) {
   return (
@@ -105,7 +108,7 @@ function WorkoutDay({
         <View style={styles.dayCopy}>
           <View style={styles.dayTitleRow}>
             <Text style={styles.dayTitle}>{title}</Text>
-            {expanded && <Text style={styles.todayBadge}>Hôm nay</Text>}
+            {today && <Text style={styles.todayBadge}>Hôm nay</Text>}
           </View>
           <Text style={styles.dayDetails}>{details}</Text>
         </View>
@@ -113,8 +116,9 @@ function WorkoutDay({
       </View>
       {expanded && (
         <View style={styles.exerciseList}>
+          {!exercises.length && <Text style={styles.dayDetails}>Chưa có bài tập</Text>}
           {exercises.map((exercise) => (
-            <ExerciseRow key={exercise[0]} exercise={exercise} />
+            <ExerciseRow key={exercise.configId} exercise={exercise} />
           ))}
         </View>
       )}
@@ -123,13 +127,21 @@ function WorkoutDay({
 }
 
 export default function PlansScreen() {
-  const [expandedDay, setExpandedDay] = useState(1);
+  const state = useApiData(async (signal) => {
+    const [plan, today] = await Promise.all([userApi.activePlan(signal), userApi.todayWorkout(signal)]);
+    return { plan, today };
+  });
+  const plan = state.data?.plan;
+  const today = state.data?.today;
+  const [selectedDay, setExpandedDay] = useState<number | null>(null);
+  const expandedDay = selectedDay ?? today?.dayId ?? plan?.days[0]?.dayId;
   const toggleDay = (day: number) =>
     setExpandedDay(expandedDay === day ? 0 : day);
 
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -138,54 +150,43 @@ export default function PlansScreen() {
           parentHorizontalPadding={23}
           parentTopPadding={13}
         />
-        <View style={styles.personalHeader}>
-          <Text style={styles.eyebrow}>KẾ HOẠCH CÁ NHÂN</Text>
-          <View style={styles.activeBadge}>
-            <View style={styles.activeDot} />
-            <Text style={styles.activeText}>Đang kích hoạt</Text>
+        <DataState {...state} retry={state.refresh} empty={!plan && "Chưa có lịch tập"} />
+        {state.data && <>
+          <View style={styles.personalHeader}>
+            <Text style={styles.eyebrow}>KẾ HOẠCH CÁ NHÂN</Text>
+            <View style={styles.activeBadge}>
+              <View style={styles.activeDot} />
+              <Text style={styles.activeText}>{plan ? "Đang kích hoạt" : "Chưa có lịch tập"}</Text>
+            </View>
           </View>
-        </View>
-        <Text style={styles.heading}>Chương trình của tôi</Text>
-        <RoutineCard />
-        <View style={styles.actionRow}>
-          <Pressable style={styles.actionButton}>
-            <Text style={styles.actionPlus}>＋</Text>
-            <Text style={styles.actionText}>Tạo lịch mới</Text>
+          <Text style={styles.heading}>Chương trình của tôi</Text>
+          {plan && <RoutineCard plan={plan} />}
+          <View style={styles.actionRow}>
+            <Pressable style={styles.actionButton}>
+              <Text style={styles.actionPlus}>＋</Text>
+              <Text style={styles.actionText}>Tạo lịch mới</Text>
+            </Pressable>
+            <Pressable style={styles.actionButton}>
+              <Text style={styles.actionIcon}>▣</Text>
+              <Text style={styles.actionText}>Tham gia mẫu</Text>
+            </Pressable>
+          </View>
+          <View style={styles.routeHeader}>
+            <Text style={styles.routeTitle}>Lộ trình tập tuần này</Text>
+            <Text style={styles.routeCount}>{plan?.completedThisWeek ?? 0}/{plan?.totalDays ?? 0} buổi đã tập</Text>
+          </View>
+          {plan?.days.map((day) => (
+            <WorkoutDay key={day.dayId} title={day.dayName}
+              details={`${day.exercises.length} bài • ${day.exercises.reduce((sum, exercise) => sum + Number(exercise.sets), 0)} sets`}
+              icon="⚒" expanded={expandedDay === day.dayId} onPress={() => toggleDay(day.dayId)}
+              today={today?.dayId === day.dayId} exercises={day.exercises} />
+          ))}
+          {plan && !plan.days.length && <Text style={styles.dayDetails}>Chưa có ngày tập</Text>}
+          <Pressable style={styles.startButton} disabled={!today}>
+            <Text style={styles.playIcon}>▶</Text>
+            <Text style={styles.startText}>{today ? `START WORKOUT (${today.dayName})` : "Hôm nay không có buổi tập"}</Text>
           </Pressable>
-          <Pressable style={styles.actionButton}>
-            <Text style={styles.actionIcon}>▣</Text>
-            <Text style={styles.actionText}>Tham gia mẫu</Text>
-          </Pressable>
-        </View>
-        <View style={styles.routeHeader}>
-          <Text style={styles.routeTitle}>Lộ trình tập tuần này</Text>
-          <Text style={styles.routeCount}>3/6 buổi đã tập</Text>
-        </View>
-        <WorkoutDay
-          title="DAY 1 – PUSH DAY"
-          details="5 bài • 45 phút"
-          icon="⚒"
-          expanded={expandedDay === 1}
-          onPress={() => toggleDay(1)}
-        />
-        <WorkoutDay
-          title="DAY 2 – PULL DAY"
-          details="5 bài • 50 phút"
-          icon="↗"
-          expanded={expandedDay === 2}
-          onPress={() => toggleDay(2)}
-        />
-        <WorkoutDay
-          title="DAY 3 – LEG DAY"
-          details="6 bài • 55 phút"
-          icon="♙"
-          expanded={expandedDay === 3}
-          onPress={() => toggleDay(3)}
-        />
-        <Pressable style={styles.startButton}>
-          <Text style={styles.playIcon}>▶</Text>
-          <Text style={styles.startText}>START WORKOUT (PUSH DAY)</Text>
-        </Pressable>
+        </>}
       </ScrollView>
     </SafeAreaView>
   );

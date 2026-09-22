@@ -8,7 +8,10 @@ const validLevels = new Set(["BEGINNER", "INTERMEDIATE", "ADVANCED"]);
 const validatePlan = (body, includeCreator = false) => {
   if (!body || typeof body.title !== "string" || !body.title.trim())
     return "Tên chương trình không được để trống";
+  if (body.title.trim().length > 150) return "Tên chương trình tối đa 150 ký tự";
   if (!validLevels.has(body.level)) return "Trình độ không hợp lệ";
+  if (!Number.isInteger(body.durationWeeks) || body.durationWeeks <= 0 || body.durationWeeks > 2147483647)
+    return "Số tuần của chương trình phải là số nguyên lớn hơn 0";
   if (
     includeCreator &&
     body.creatorId !== undefined &&
@@ -40,6 +43,9 @@ const WorkoutplansController = {
         return res.status(404).json({ message: "Chương trình không tồn tại" });
       return res.json(result);
     } catch (error) {
+      if (error.sqlState === "45000") {
+        return res.status(404).json({ message: getErrorMessage(error) });
+      }
       return res.status(500).json({
         message: "Không thể tải chi tiết giáo án",
         error: getErrorMessage(error),
@@ -64,7 +70,7 @@ const WorkoutplansController = {
         data: result,
       });
     } catch (error) {
-      return res.status(error.statusCode || 500).json({
+      return res.status(error.statusCode || (error.sqlState === "45000" ? 400 : 500)).json({
         message: getErrorMessage(error) || "Tạo chương trình thất bại",
       });
     }
@@ -91,7 +97,7 @@ const WorkoutplansController = {
         data: result,
       });
     } catch (error) {
-      return res.status(error.statusCode || 500).json({
+      return res.status(error.statusCode || (error.sqlState === "45000" ? 400 : 500)).json({
         message: getErrorMessage(error) || "Cập nhật chương trình thất bại",
       });
     }

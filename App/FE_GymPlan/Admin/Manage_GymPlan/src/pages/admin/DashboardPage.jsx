@@ -326,7 +326,7 @@ const DashboardPage = () => {
                     <small>{template.description || "-"}</small>
                   </div>
                   <span className="admin-badge">{template.level || "-"}</span>
-                  <span className="dashboard-meta">{template.totalDays || 0} ngày</span>
+                  <span className="dashboard-meta">{template.durationWeeks ?? "—"} tuần • {template.totalDays || 0} ngày</span>
                   <span className="dashboard-meta">{template.totalExercises || 0} bài</span>
                 </div>
               ))}

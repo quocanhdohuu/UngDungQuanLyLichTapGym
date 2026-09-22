@@ -387,6 +387,56 @@ CREATE TABLE BodyMetrics (
         CHECK (weight IS NULL OR weight > 0)
 );
 
+-- =====================================================
+-- 1. Số tuần của một chương trình
+-- Ví dụ PPL chạy trong 8 tuần
+-- =====================================================
+ALTER TABLE WorkoutPlans
+ADD COLUMN durationWeeks INT NOT NULL DEFAULT 8 AFTER level;
+
+
+-- =====================================================
+-- 2. Ngày bắt đầu sử dụng lịch của User
+-- =====================================================
+ALTER TABLE GymUserWorkoutPlans
+ADD COLUMN startedAt DATE NULL AFTER joinedAt;
+
+
+-- Có thể cập nhật dữ liệu cũ
+UPDATE GymUserWorkoutPlans
+SET startedAt = DATE(joinedAt)
+WHERE startedAt IS NULL;
+
+
+-- =====================================================
+-- 3. Ngày trong tuần của từng WorkoutDay
+-- Quy ước:
+-- 1 = Thứ 2
+-- 2 = Thứ 3
+-- ...
+-- 7 = Chủ nhật
+-- =====================================================
+ALTER TABLE WorkoutDays
+ADD COLUMN weekDay TINYINT NULL AFTER `order`;
+
+ALTER TABLE WorkoutDays
+ADD CONSTRAINT chk_workout_day_weekday
+CHECK (weekDay IS NULL OR weekDay BETWEEN 1 AND 7);
+
+
+-- =====================================================
+-- 4. WorkoutSession thuộc ngày tập nào
+-- =====================================================
+ALTER TABLE WorkoutSessions
+ADD COLUMN dayId INT NULL AFTER profileId;
+
+ALTER TABLE WorkoutSessions
+ADD CONSTRAINT fk_workoutsession_day
+FOREIGN KEY (dayId)
+REFERENCES WorkoutDays(dayId)
+ON DELETE SET NULL
+ON UPDATE CASCADE;
+
 
 SELECT * FROM `accounts`;
 SELECT * FROM `gymusers`;
@@ -1248,6 +1298,478 @@ ORDER BY
     wd.`order`,
     ec.`order`;
 
+
+
+USE QuanLyLichTapGym;
+
+START TRANSACTION;
+
+-- ============================================================
+-- 1. BỔ SUNG MUSCLE GROUP NẾU CHƯA CÓ
+-- ============================================================
+
+INSERT IGNORE INTO MuscleGroups (groupName, `function`) VALUES
+('Chest', 'Thực hiện các chuyển động đẩy và khép cánh tay ngang thân.'),
+('Front Delts', 'Hỗ trợ nâng cánh tay về phía trước và các chuyển động đẩy.'),
+('Side Delts', 'Thực hiện động tác dạng cánh tay sang hai bên.'),
+('Rear Delts', 'Hỗ trợ đưa cánh tay ra sau và ổn định vai.'),
+('Triceps', 'Duỗi khuỷu tay và hỗ trợ các động tác đẩy.'),
+('Biceps', 'Gập khuỷu tay và hỗ trợ các động tác kéo.'),
+('Forearms', 'Hỗ trợ lực nắm, gập và duỗi cổ tay.'),
+('Lats', 'Thực hiện kéo cánh tay xuống và về phía thân.'),
+('Upper Back', 'Hỗ trợ kéo, thu xương bả vai và ổn định thân trên.'),
+('Lower Back', 'Hỗ trợ duỗi và ổn định cột sống.'),
+('Quadriceps', 'Duỗi khớp gối và hỗ trợ các động tác squat.'),
+('Hamstrings', 'Gập gối và duỗi hông.'),
+('Glutes', 'Duỗi hông, dạng hông và ổn định vùng chậu.'),
+('Calves', 'Thực hiện động tác gập bàn chân xuống.'),
+('Abs', 'Ổn định thân người và hỗ trợ gập thân.');
+
+
+-- ============================================================
+-- 2. BỔ SUNG EQUIPMENT NẾU CHƯA CÓ
+-- ============================================================
+
+INSERT IGNORE INTO Equipment (equipmentName) VALUES
+('Barbell'),
+('Dumbbell'),
+('Bench'),
+('Cable Machine'),
+('Chest Press Machine'),
+('Pec Deck Machine'),
+('Pull Up Bar'),
+('T-Bar'),
+('Shoulder Press Machine'),
+('Preacher Bench'),
+('Leg Press Machine'),
+('Hack Squat Machine'),
+('Leg Extension Machine'),
+('Leg Curl Machine'),
+('Calf Raise Machine'),
+('Ab Wheel'),
+('Bodyweight');
+
+
+-- ============================================================
+-- 3. BẢNG TẠM MAPPING PRIMARY / SECONDARY MUSCLES
+-- ============================================================
+
+DROP TEMPORARY TABLE IF EXISTS TempExerciseMuscles;
+
+CREATE TEMPORARY TABLE TempExerciseMuscles (
+    exerciseName VARCHAR(150),
+    muscleName VARCHAR(100),
+    muscleRole ENUM('PRIMARY', 'SECONDARY')
+);
+
+
+INSERT INTO TempExerciseMuscles VALUES
+
+-- =========================
+-- CHEST
+-- =========================
+
+('Dumbbell Bench Press','Chest','PRIMARY'),
+('Dumbbell Bench Press','Front Delts','SECONDARY'),
+('Dumbbell Bench Press','Triceps','SECONDARY'),
+
+('Chest Press Machine','Chest','PRIMARY'),
+('Chest Press Machine','Front Delts','SECONDARY'),
+('Chest Press Machine','Triceps','SECONDARY'),
+
+('Cable Fly','Chest','PRIMARY'),
+('Cable Fly','Front Delts','SECONDARY'),
+
+('Pec Deck Fly','Chest','PRIMARY'),
+('Pec Deck Fly','Front Delts','SECONDARY'),
+
+('Push Up','Chest','PRIMARY'),
+('Push Up','Triceps','SECONDARY'),
+('Push Up','Front Delts','SECONDARY'),
+
+
+-- =========================
+-- BACK
+-- =========================
+
+('Pull Up','Lats','PRIMARY'),
+('Pull Up','Upper Back','SECONDARY'),
+('Pull Up','Biceps','SECONDARY'),
+('Pull Up','Forearms','SECONDARY'),
+
+('Chin Up','Lats','PRIMARY'),
+('Chin Up','Biceps','SECONDARY'),
+('Chin Up','Upper Back','SECONDARY'),
+('Chin Up','Forearms','SECONDARY'),
+
+('Barbell Bent Over Row','Upper Back','PRIMARY'),
+('Barbell Bent Over Row','Lats','SECONDARY'),
+('Barbell Bent Over Row','Rear Delts','SECONDARY'),
+('Barbell Bent Over Row','Biceps','SECONDARY'),
+('Barbell Bent Over Row','Lower Back','SECONDARY'),
+
+('Dumbbell Row','Lats','PRIMARY'),
+('Dumbbell Row','Upper Back','SECONDARY'),
+('Dumbbell Row','Rear Delts','SECONDARY'),
+('Dumbbell Row','Biceps','SECONDARY'),
+
+('Seated Cable Row','Upper Back','PRIMARY'),
+('Seated Cable Row','Lats','SECONDARY'),
+('Seated Cable Row','Rear Delts','SECONDARY'),
+('Seated Cable Row','Biceps','SECONDARY'),
+
+('T-Bar Row','Upper Back','PRIMARY'),
+('T-Bar Row','Lats','SECONDARY'),
+('T-Bar Row','Rear Delts','SECONDARY'),
+('T-Bar Row','Biceps','SECONDARY'),
+
+('Straight Arm Pulldown','Lats','PRIMARY'),
+('Straight Arm Pulldown','Triceps','SECONDARY'),
+
+('Face Pull','Rear Delts','PRIMARY'),
+('Face Pull','Upper Back','SECONDARY'),
+
+
+-- =========================
+-- SHOULDERS
+-- =========================
+
+('Barbell Overhead Press','Front Delts','PRIMARY'),
+('Barbell Overhead Press','Side Delts','SECONDARY'),
+('Barbell Overhead Press','Triceps','SECONDARY'),
+
+('Arnold Press','Front Delts','PRIMARY'),
+('Arnold Press','Side Delts','SECONDARY'),
+('Arnold Press','Triceps','SECONDARY'),
+
+('Machine Shoulder Press','Front Delts','PRIMARY'),
+('Machine Shoulder Press','Side Delts','SECONDARY'),
+('Machine Shoulder Press','Triceps','SECONDARY'),
+
+('Cable Lateral Raise','Side Delts','PRIMARY'),
+
+('Reverse Pec Deck','Rear Delts','PRIMARY'),
+('Reverse Pec Deck','Upper Back','SECONDARY'),
+
+('Rear Delt Fly','Rear Delts','PRIMARY'),
+('Rear Delt Fly','Upper Back','SECONDARY'),
+
+
+-- =========================
+-- BICEPS
+-- =========================
+
+('Barbell Curl','Biceps','PRIMARY'),
+('Barbell Curl','Forearms','SECONDARY'),
+
+('Dumbbell Curl','Biceps','PRIMARY'),
+('Dumbbell Curl','Forearms','SECONDARY'),
+
+('Hammer Curl','Biceps','PRIMARY'),
+('Hammer Curl','Forearms','SECONDARY'),
+
+('Incline Dumbbell Curl','Biceps','PRIMARY'),
+('Incline Dumbbell Curl','Forearms','SECONDARY'),
+
+('Preacher Curl','Biceps','PRIMARY'),
+('Preacher Curl','Forearms','SECONDARY'),
+
+('Cable Curl','Biceps','PRIMARY'),
+('Cable Curl','Forearms','SECONDARY'),
+
+
+-- =========================
+-- TRICEPS
+-- =========================
+
+('Triceps Pushdown','Triceps','PRIMARY'),
+
+('Overhead Triceps Extension','Triceps','PRIMARY'),
+
+('Skull Crusher','Triceps','PRIMARY'),
+
+('Close Grip Bench Press','Triceps','PRIMARY'),
+('Close Grip Bench Press','Chest','SECONDARY'),
+('Close Grip Bench Press','Front Delts','SECONDARY'),
+
+('Bench Dips','Triceps','PRIMARY'),
+('Bench Dips','Chest','SECONDARY'),
+('Bench Dips','Front Delts','SECONDARY'),
+
+
+-- =========================
+-- LEGS
+-- =========================
+
+('Front Squat','Quadriceps','PRIMARY'),
+('Front Squat','Glutes','SECONDARY'),
+
+('Leg Press','Quadriceps','PRIMARY'),
+('Leg Press','Glutes','SECONDARY'),
+('Leg Press','Hamstrings','SECONDARY'),
+
+('Hack Squat','Quadriceps','PRIMARY'),
+('Hack Squat','Glutes','SECONDARY'),
+
+('Bulgarian Split Squat','Quadriceps','PRIMARY'),
+('Bulgarian Split Squat','Glutes','SECONDARY'),
+('Bulgarian Split Squat','Hamstrings','SECONDARY'),
+
+('Walking Lunge','Quadriceps','PRIMARY'),
+('Walking Lunge','Glutes','SECONDARY'),
+('Walking Lunge','Hamstrings','SECONDARY'),
+
+('Leg Extension','Quadriceps','PRIMARY'),
+
+
+-- =========================
+-- HAMSTRINGS / GLUTES
+-- =========================
+
+('Romanian Deadlift','Hamstrings','PRIMARY'),
+('Romanian Deadlift','Glutes','SECONDARY'),
+('Romanian Deadlift','Lower Back','SECONDARY'),
+
+('Lying Leg Curl','Hamstrings','PRIMARY'),
+
+('Seated Leg Curl','Hamstrings','PRIMARY'),
+
+('Hip Thrust','Glutes','PRIMARY'),
+('Hip Thrust','Hamstrings','SECONDARY'),
+
+('Glute Bridge','Glutes','PRIMARY'),
+('Glute Bridge','Hamstrings','SECONDARY'),
+
+('Good Morning','Hamstrings','PRIMARY'),
+('Good Morning','Glutes','SECONDARY'),
+('Good Morning','Lower Back','SECONDARY'),
+
+
+-- =========================
+-- CALVES
+-- =========================
+
+('Standing Calf Raise','Calves','PRIMARY'),
+
+('Seated Calf Raise','Calves','PRIMARY'),
+
+
+-- =========================
+-- CORE
+-- =========================
+
+('Plank','Abs','PRIMARY'),
+
+('Hanging Leg Raise','Abs','PRIMARY'),
+
+('Cable Crunch','Abs','PRIMARY'),
+
+('Ab Wheel Rollout','Abs','PRIMARY'),
+
+('Russian Twist','Abs','PRIMARY');
+
+
+-- ============================================================
+-- 4. INSERT MUSCLE RELATION
+-- ============================================================
+-- UNIQUE(exerciseId, groupId) trong schema sẽ ngăn duplicate.
+-- NOT EXISTS giúp script chạy lại an toàn hơn.
+
+INSERT INTO ExerciseMuscleGroups (
+    exerciseId,
+    groupId,
+    role
+)
+SELECT
+    e.exerciseId,
+    mg.groupId,
+    tem.muscleRole
+FROM TempExerciseMuscles tem
+
+INNER JOIN Exercises e
+    ON e.name = tem.exerciseName
+
+INNER JOIN MuscleGroups mg
+    ON mg.groupName = tem.muscleName
+
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ExerciseMuscleGroups emg
+    WHERE emg.exerciseId = e.exerciseId
+      AND emg.groupId = mg.groupId
+);
+
+
+-- ============================================================
+-- 5. TẠO MAPPING EQUIPMENT
+-- ============================================================
+
+DROP TEMPORARY TABLE IF EXISTS TempExerciseEquipment;
+
+CREATE TEMPORARY TABLE TempExerciseEquipment (
+    exerciseName VARCHAR(150),
+    equipmentName VARCHAR(100)
+);
+
+
+INSERT INTO TempExerciseEquipment VALUES
+
+-- CHEST
+('Dumbbell Bench Press','Dumbbell'),
+('Dumbbell Bench Press','Bench'),
+
+('Chest Press Machine','Chest Press Machine'),
+
+('Cable Fly','Cable Machine'),
+
+('Pec Deck Fly','Pec Deck Machine'),
+
+('Push Up','Bodyweight'),
+
+
+-- BACK
+('Pull Up','Pull Up Bar'),
+('Pull Up','Bodyweight'),
+
+('Chin Up','Pull Up Bar'),
+('Chin Up','Bodyweight'),
+
+('Barbell Bent Over Row','Barbell'),
+
+('Dumbbell Row','Dumbbell'),
+('Dumbbell Row','Bench'),
+
+('Seated Cable Row','Cable Machine'),
+
+('T-Bar Row','T-Bar'),
+
+('Straight Arm Pulldown','Cable Machine'),
+
+('Face Pull','Cable Machine'),
+
+
+-- SHOULDERS
+('Barbell Overhead Press','Barbell'),
+
+('Arnold Press','Dumbbell'),
+
+('Machine Shoulder Press','Shoulder Press Machine'),
+
+('Cable Lateral Raise','Cable Machine'),
+
+('Reverse Pec Deck','Pec Deck Machine'),
+
+('Rear Delt Fly','Dumbbell'),
+
+
+-- BICEPS
+('Barbell Curl','Barbell'),
+
+('Dumbbell Curl','Dumbbell'),
+
+('Hammer Curl','Dumbbell'),
+
+('Incline Dumbbell Curl','Dumbbell'),
+('Incline Dumbbell Curl','Bench'),
+
+('Preacher Curl','Barbell'),
+('Preacher Curl','Preacher Bench'),
+
+('Cable Curl','Cable Machine'),
+
+
+-- TRICEPS
+('Triceps Pushdown','Cable Machine'),
+
+('Overhead Triceps Extension','Cable Machine'),
+
+('Skull Crusher','Barbell'),
+('Skull Crusher','Bench'),
+
+('Close Grip Bench Press','Barbell'),
+('Close Grip Bench Press','Bench'),
+
+('Bench Dips','Bench'),
+('Bench Dips','Bodyweight'),
+
+
+-- LEGS
+('Front Squat','Barbell'),
+
+('Leg Press','Leg Press Machine'),
+
+('Hack Squat','Hack Squat Machine'),
+
+('Bulgarian Split Squat','Dumbbell'),
+('Bulgarian Split Squat','Bench'),
+
+('Walking Lunge','Dumbbell'),
+
+('Leg Extension','Leg Extension Machine'),
+
+('Romanian Deadlift','Barbell'),
+
+('Lying Leg Curl','Leg Curl Machine'),
+
+('Seated Leg Curl','Leg Curl Machine'),
+
+('Hip Thrust','Barbell'),
+('Hip Thrust','Bench'),
+
+('Glute Bridge','Bodyweight'),
+
+('Good Morning','Barbell'),
+
+
+-- CALVES
+('Standing Calf Raise','Calf Raise Machine'),
+
+('Seated Calf Raise','Calf Raise Machine'),
+
+
+-- CORE
+('Plank','Bodyweight'),
+
+('Hanging Leg Raise','Pull Up Bar'),
+('Hanging Leg Raise','Bodyweight'),
+
+('Cable Crunch','Cable Machine'),
+
+('Ab Wheel Rollout','Ab Wheel'),
+
+('Russian Twist','Bodyweight');
+
+
+-- ============================================================
+-- 6. INSERT EQUIPMENT RELATION
+-- ============================================================
+
+INSERT INTO ExerciseEquipment (
+    exerciseId,
+    equipmentId
+)
+SELECT
+    e.exerciseId,
+    eq.equipmentId
+
+FROM TempExerciseEquipment tee
+
+INNER JOIN Exercises e
+    ON e.name = tee.exerciseName
+
+INNER JOIN Equipment eq
+    ON eq.equipmentName = tee.equipmentName
+
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ExerciseEquipment ee
+    WHERE ee.exerciseId = e.exerciseId
+      AND ee.equipmentId = eq.equipmentId
+);
+
+
+COMMIT;
+
 -- ===================================================================== --
 -- ===================================================================== --
 -- ===================================================================== --
@@ -1984,6 +2506,8 @@ DELIMITER ;
 CALL sp_GetAllGymUsers();
 
 -- 8. Thêm Gym_User --
+DROP PROCEDURE IF EXISTS sp_AddGymUser;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_AddGymUser(
@@ -2008,11 +2532,9 @@ BEGIN
         RESIGNAL;
     END;
 
-    START TRANSACTION;
-
-    -- ==============================
+    -- ============================================
     -- Validate
-    -- ==============================
+    -- ============================================
 
     IF p_username IS NULL OR TRIM(p_username) = '' THEN
         SIGNAL SQLSTATE '45000'
@@ -2024,75 +2546,86 @@ BEGIN
         SET MESSAGE_TEXT = 'Email không được để trống';
     END IF;
 
+    IF p_password IS NULL OR p_password = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Mật khẩu không được để trống';
+    END IF;
+
     IF p_fullName IS NULL OR TRIM(p_fullName) = '' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Họ tên không được để trống';
     END IF;
 
-    IF p_sessionsPerWeek IS NOT NULL
-       AND (p_sessionsPerWeek < 0 OR p_sessionsPerWeek > 7) THEN
-
+    IF p_gender IS NOT NULL
+       AND p_gender NOT IN ('MALE', 'FEMALE', 'OTHER') THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Số buổi tập mỗi tuần phải từ 0 đến 7';
-
+        SET MESSAGE_TEXT = 'Giới tính không hợp lệ';
     END IF;
 
-    -- ==============================
-    -- Check username
-    -- ==============================
+    IF p_level IS NOT NULL
+       AND p_level NOT IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Trình độ không hợp lệ';
+    END IF;
+
+    IF p_sessionsPerWeek IS NOT NULL
+       AND (p_sessionsPerWeek < 1 OR p_sessionsPerWeek > 7) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Số buổi tập mỗi tuần phải từ 1 đến 7';
+    END IF;
+
+    -- ============================================
+    -- Kiểm tra username
+    -- ============================================
 
     IF EXISTS (
         SELECT 1
         FROM Accounts
-        WHERE username = p_username
+        WHERE username = TRIM(p_username)
     ) THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Username đã tồn tại';
-
     END IF;
 
-    -- ==============================
-    -- Check email
-    -- ==============================
+    -- ============================================
+    -- Kiểm tra email
+    -- ============================================
 
     IF EXISTS (
         SELECT 1
         FROM Accounts
-        WHERE email = p_email
+        WHERE email = TRIM(p_email)
     ) THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Email đã tồn tại';
-
     END IF;
 
-    -- ==============================
-    -- Insert Account
-    -- ==============================
+    START TRANSACTION;
+
+    -- ============================================
+    -- Tạo Account
+    -- ============================================
 
     INSERT INTO Accounts (
         username,
         email,
         password,
         role,
-        status,
-        createdAt
+        status
     )
     VALUES (
         TRIM(p_username),
         TRIM(p_email),
         p_password,
         'GYM_USER',
-        'ACTIVE',
-        NOW()
+        'ACTIVE'
     );
 
     SET v_accountId = LAST_INSERT_ID();
 
-    -- ==============================
-    -- Insert GymUser
-    -- ==============================
+    -- ============================================
+    -- Tạo GymUser
+    -- ============================================
 
     INSERT INTO GymUsers (
         accountId,
@@ -2107,7 +2640,7 @@ BEGIN
         v_accountId,
         TRIM(p_fullName),
         p_gender,
-        p_level,
+        COALESCE(p_level, 'BEGINNER'),
         p_goal,
         p_sessionsPerWeek,
         'ACTIVE'
@@ -2127,6 +2660,8 @@ END $$
 DELIMITER ;
 
 -- 9. Sửa thông tin Gym_User --
+DROP PROCEDURE IF EXISTS sp_UpdateGymUser;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_UpdateGymUser(
@@ -2140,6 +2675,7 @@ CREATE PROCEDURE sp_UpdateGymUser(
     IN p_level VARCHAR(20),
     IN p_goal VARCHAR(255),
     IN p_sessionsPerWeek INT,
+
     IN p_status VARCHAR(20)
 )
 BEGIN
@@ -2152,92 +2688,97 @@ BEGIN
         RESIGNAL;
     END;
 
-    START TRANSACTION;
-
-    -- ==============================
-    -- Lấy Account
-    -- ==============================
+    -- ============================================
+    -- Lấy accountId
+    -- ============================================
 
     SELECT accountId
     INTO v_accountId
     FROM GymUsers
-    WHERE profileId = p_profileId;
+    WHERE profileId = p_profileId
+    LIMIT 1;
 
     IF v_accountId IS NULL THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Người dùng không tồn tại';
-
     END IF;
 
-    -- ==============================
+    -- ============================================
     -- Validate
-    -- ==============================
+    -- ============================================
 
     IF p_username IS NULL OR TRIM(p_username) = '' THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Username không được để trống';
-
     END IF;
 
     IF p_email IS NULL OR TRIM(p_email) = '' THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Email không được để trống';
-
     END IF;
 
     IF p_fullName IS NULL OR TRIM(p_fullName) = '' THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Họ tên không được để trống';
+    END IF;
 
+    IF p_gender IS NOT NULL
+       AND p_gender NOT IN ('MALE', 'FEMALE', 'OTHER') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Giới tính không hợp lệ';
+    END IF;
+
+    IF p_level IS NOT NULL
+       AND p_level NOT IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Trình độ không hợp lệ';
     END IF;
 
     IF p_sessionsPerWeek IS NOT NULL
-       AND (p_sessionsPerWeek < 0 OR p_sessionsPerWeek > 7) THEN
-
+       AND (p_sessionsPerWeek < 1 OR p_sessionsPerWeek > 7) THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Số buổi tập mỗi tuần phải từ 0 đến 7';
-
+        SET MESSAGE_TEXT = 'Số buổi tập mỗi tuần phải từ 1 đến 7';
     END IF;
 
-    -- ==============================
-    -- Check username trùng
-    -- ==============================
+    IF p_status NOT IN ('ACTIVE', 'LOCKED', 'INACTIVE') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Trạng thái tài khoản không hợp lệ';
+    END IF;
+
+    -- ============================================
+    -- Kiểm tra username trùng
+    -- ============================================
 
     IF EXISTS (
         SELECT 1
         FROM Accounts
-        WHERE username = p_username
+        WHERE username = TRIM(p_username)
           AND accountId <> v_accountId
     ) THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Username đã tồn tại';
-
     END IF;
 
-    -- ==============================
-    -- Check email trùng
-    -- ==============================
+    -- ============================================
+    -- Kiểm tra email trùng
+    -- ============================================
 
     IF EXISTS (
         SELECT 1
         FROM Accounts
-        WHERE email = p_email
+        WHERE email = TRIM(p_email)
           AND accountId <> v_accountId
     ) THEN
-
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Email đã tồn tại';
-
     END IF;
 
-    -- ==============================
-    -- Update Account
-    -- ==============================
+    START TRANSACTION;
+
+    -- ============================================
+    -- Account
+    -- LOCKED chỉ áp dụng cho Account
+    -- ============================================
 
     UPDATE Accounts
     SET
@@ -2246,9 +2787,15 @@ BEGIN
         status = p_status
     WHERE accountId = v_accountId;
 
-    -- ==============================
-    -- Update GymUser
-    -- ==============================
+    -- ============================================
+    -- GymUser
+    --
+    -- Nếu LOCKED:
+    -- chỉ khóa Account, không thay đổi profileStatus.
+    --
+    -- ACTIVE / INACTIVE:
+    -- đồng bộ profileStatus.
+    -- ============================================
 
     UPDATE GymUsers
     SET
@@ -2257,7 +2804,14 @@ BEGIN
         level = p_level,
         goal = p_goal,
         sessionsPerWeek = p_sessionsPerWeek,
-        status = p_status
+
+        status = CASE
+            WHEN p_status = 'LOCKED' THEN status
+            WHEN p_status = 'ACTIVE' THEN 'ACTIVE'
+            WHEN p_status = 'INACTIVE' THEN 'INACTIVE'
+            ELSE status
+        END
+
     WHERE profileId = p_profileId;
 
     COMMIT;
@@ -2265,6 +2819,7 @@ BEGIN
     SELECT
         p_profileId AS profileId,
         v_accountId AS accountId,
+        p_status AS accountStatus,
         'Cập nhật người dùng thành công' AS message;
 
 END $$
@@ -2272,6 +2827,8 @@ END $$
 DELIMITER ;
 
 -- 10. Load all Lịch tập --
+DROP PROCEDURE IF EXISTS sp_GetWorkoutPlanTemplates;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_GetWorkoutPlanTemplates()
@@ -2282,6 +2839,7 @@ BEGIN
         wp.title,
         wp.description,
         wp.level,
+        wp.durationWeeks,
         wp.isTemplate,
         wp.creatorId,
         wp.createdAt,
@@ -2300,6 +2858,7 @@ BEGIN
         wp.title,
         wp.description,
         wp.level,
+        wp.durationWeeks,
         wp.isTemplate,
         wp.creatorId,
         wp.createdAt
@@ -2312,6 +2871,8 @@ DELIMITER ;
 CALL sp_GetWorkoutPlanTemplates();
 
 -- 11. Load chi tiết lịch tập --
+DROP PROCEDURE IF EXISTS sp_GetWorkoutPlanDetail;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_GetWorkoutPlanDetail(
@@ -2319,9 +2880,23 @@ CREATE PROCEDURE sp_GetWorkoutPlanDetail(
 )
 BEGIN
 
-    -- =========================================
-    -- 1. Thông tin Plan
-    -- =========================================
+    -- ============================================
+    -- Kiểm tra Plan
+    -- ============================================
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM WorkoutPlans
+        WHERE planId = p_planId
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Chương trình không tồn tại';
+    END IF;
+
+
+    -- ============================================
+    -- RESULT SET 1: Thông tin Plan
+    -- ============================================
 
     SELECT
         wp.planId,
@@ -2330,6 +2905,7 @@ BEGIN
         wp.creatorId,
         wp.isTemplate,
         wp.level,
+        wp.durationWeeks,
         wp.createdAt,
 
         COUNT(DISTINCT wd.dayId) AS totalDays
@@ -2348,17 +2924,19 @@ BEGIN
         wp.creatorId,
         wp.isTemplate,
         wp.level,
+        wp.durationWeeks,
         wp.createdAt;
 
 
-    -- =========================================
-    -- 2. Days + Exercises
-    -- =========================================
+    -- ============================================
+    -- RESULT SET 2: Days + Exercises
+    -- ============================================
 
     SELECT
         wd.dayId,
         wd.dayName,
         wd.`order` AS dayOrder,
+        wd.weekDay,
 
         ec.configId,
         ec.exerciseId,
@@ -2385,6 +2963,35 @@ BEGIN
         wd.`order`,
         ec.`order`;
 
+
+    -- ============================================
+    -- RESULT SET 3: Media
+    -- ============================================
+
+    SELECT DISTINCT
+        em.mediaId,
+        em.exerciseId,
+        em.mediaUrl,
+        em.publicId,
+        em.mediaType,
+        em.sortOrder,
+        em.createdAt
+
+    FROM WorkoutDays wd
+
+    INNER JOIN ExerciseConfigs ec
+        ON ec.dayId = wd.dayId
+
+    INNER JOIN ExerciseMedia em
+        ON em.exerciseId = ec.exerciseId
+
+    WHERE wd.planId = p_planId
+
+    ORDER BY
+        em.exerciseId,
+        em.sortOrder,
+        em.mediaId;
+
 END $$
 
 DELIMITER ;
@@ -2392,6 +2999,8 @@ DELIMITER ;
 CALL sp_GetWorkoutPlanDetail(1);
 
 -- 12.Tạo lịch tập mới --
+DROP PROCEDURE IF EXISTS sp_CreateWorkoutPlan;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_CreateWorkoutPlan(
@@ -2399,11 +3008,16 @@ CREATE PROCEDURE sp_CreateWorkoutPlan(
     IN p_description TEXT,
     IN p_creatorId INT,
     IN p_isTemplate BOOLEAN,
-    IN p_level VARCHAR(20)
+    IN p_level VARCHAR(20),
+    IN p_durationWeeks INT
 )
 BEGIN
 
     DECLARE v_planId INT;
+
+    -- ============================================
+    -- Validate
+    -- ============================================
 
     IF p_title IS NULL OR TRIM(p_title) = '' THEN
         SIGNAL SQLSTATE '45000'
@@ -2419,19 +3033,42 @@ BEGIN
         SET MESSAGE_TEXT = 'Trình độ không hợp lệ';
     END IF;
 
+    IF p_durationWeeks IS NULL
+       OR p_durationWeeks <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Số tuần của chương trình phải lớn hơn 0';
+
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Accounts
+        WHERE accountId = p_creatorId
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Người tạo chương trình không tồn tại';
+    END IF;
+
+    -- ============================================
+    -- Insert
+    -- ============================================
+
     INSERT INTO WorkoutPlans (
         title,
         description,
         creatorId,
         isTemplate,
-        level
+        level,
+        durationWeeks
     )
     VALUES (
         TRIM(p_title),
         p_description,
         p_creatorId,
         p_isTemplate,
-        p_level
+        p_level,
+        p_durationWeeks
     );
 
     SET v_planId = LAST_INSERT_ID();
@@ -2445,6 +3082,8 @@ END $$
 DELIMITER ;
 
 -- 13.Update lịch tập --
+DROP PROCEDURE IF EXISTS sp_UpdateWorkoutPlan;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_UpdateWorkoutPlan(
@@ -2452,7 +3091,8 @@ CREATE PROCEDURE sp_UpdateWorkoutPlan(
     IN p_title VARCHAR(150),
     IN p_description TEXT,
     IN p_level VARCHAR(20),
-    IN p_isTemplate BOOLEAN
+    IN p_isTemplate BOOLEAN,
+    IN p_durationWeeks INT
 )
 BEGIN
 
@@ -2479,11 +3119,20 @@ BEGIN
         SET MESSAGE_TEXT = 'Trình độ không hợp lệ';
     END IF;
 
+    IF p_durationWeeks IS NULL
+       OR p_durationWeeks <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Số tuần của chương trình phải lớn hơn 0';
+
+    END IF;
+
     UPDATE WorkoutPlans
     SET
         title = TRIM(p_title),
         description = p_description,
         level = p_level,
+        durationWeeks = p_durationWeeks,
         isTemplate = p_isTemplate
 
     WHERE planId = p_planId;
@@ -2497,16 +3146,23 @@ END $$
 DELIMITER ;
 
 -- 14.Thêm ngày tập cho lịch tập --
+DROP PROCEDURE IF EXISTS sp_AddWorkoutDay;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_AddWorkoutDay(
     IN p_planId INT,
-    IN p_dayName VARCHAR(100)
+    IN p_dayName VARCHAR(100),
+    IN p_weekDay TINYINT
 )
 BEGIN
 
     DECLARE v_dayId INT;
     DECLARE v_order INT;
+
+    -- ============================================
+    -- Check plan
+    -- ============================================
 
     IF NOT EXISTS (
         SELECT 1
@@ -2517,25 +3173,68 @@ BEGIN
         SET MESSAGE_TEXT = 'Chương trình không tồn tại';
     END IF;
 
-    IF p_dayName IS NULL OR TRIM(p_dayName) = '' THEN
+    -- ============================================
+    -- Validate
+    -- ============================================
+
+    IF p_dayName IS NULL
+       OR TRIM(p_dayName) = '' THEN
+
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Tên ngày tập không được để trống';
+
     END IF;
+
+    IF p_weekDay IS NOT NULL
+       AND (p_weekDay < 1 OR p_weekDay > 7) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ngày trong tuần phải từ 1 đến 7';
+
+    END IF;
+
+    -- ============================================
+    -- Không để 2 WorkoutDay cùng một weekday
+    -- trong cùng Plan
+    -- ============================================
+
+    IF p_weekDay IS NOT NULL
+       AND EXISTS (
+            SELECT 1
+            FROM WorkoutDays
+            WHERE planId = p_planId
+              AND weekDay = p_weekDay
+       ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ngày này đã có buổi tập trong chương trình';
+
+    END IF;
+
+    -- ============================================
+    -- Tạo order tiếp theo
+    -- ============================================
 
     SELECT COALESCE(MAX(`order`), 0) + 1
     INTO v_order
     FROM WorkoutDays
     WHERE planId = p_planId;
 
+    -- ============================================
+    -- Insert
+    -- ============================================
+
     INSERT INTO WorkoutDays (
         planId,
         dayName,
-        `order`
+        `order`,
+        weekDay
     )
     VALUES (
         p_planId,
         TRIM(p_dayName),
-        v_order
+        v_order,
+        p_weekDay
     );
 
     SET v_dayId = LAST_INSERT_ID();
@@ -2543,6 +3242,7 @@ BEGIN
     SELECT
         v_dayId AS dayId,
         v_order AS dayOrder,
+        p_weekDay AS weekDay,
         'Thêm ngày tập thành công' AS message;
 
 END $$
@@ -2550,34 +3250,85 @@ END $$
 DELIMITER ;
 
 -- 15.Sửa ngày tập cho lịch tập --
+DROP PROCEDURE IF EXISTS sp_UpdateWorkoutDay;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_UpdateWorkoutDay(
     IN p_dayId INT,
-    IN p_dayName VARCHAR(100)
+    IN p_dayName VARCHAR(100),
+    IN p_weekDay TINYINT
 )
 BEGIN
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM WorkoutDays
-        WHERE dayId = p_dayId
-    ) THEN
+    DECLARE v_planId INT;
+
+    -- ============================================
+    -- Check Day
+    -- ============================================
+
+    SELECT planId
+    INTO v_planId
+    FROM WorkoutDays
+    WHERE dayId = p_dayId
+    LIMIT 1;
+
+    IF v_planId IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Ngày tập không tồn tại';
     END IF;
 
-    IF p_dayName IS NULL OR TRIM(p_dayName) = '' THEN
+    -- ============================================
+    -- Validate
+    -- ============================================
+
+    IF p_dayName IS NULL
+       OR TRIM(p_dayName) = '' THEN
+
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Tên ngày tập không được để trống';
+
     END IF;
 
+    IF p_weekDay IS NOT NULL
+       AND (p_weekDay < 1 OR p_weekDay > 7) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ngày trong tuần phải từ 1 đến 7';
+
+    END IF;
+
+    -- ============================================
+    -- Check trùng weekday
+    -- ============================================
+
+    IF p_weekDay IS NOT NULL
+       AND EXISTS (
+            SELECT 1
+            FROM WorkoutDays
+            WHERE planId = v_planId
+              AND weekDay = p_weekDay
+              AND dayId <> p_dayId
+       ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ngày này đã có buổi tập trong chương trình';
+
+    END IF;
+
+    -- ============================================
+    -- Update
+    -- ============================================
+
     UPDATE WorkoutDays
-    SET dayName = TRIM(p_dayName)
+    SET
+        dayName = TRIM(p_dayName),
+        weekDay = p_weekDay
     WHERE dayId = p_dayId;
 
     SELECT
         p_dayId AS dayId,
+        p_weekDay AS weekDay,
         'Cập nhật ngày tập thành công' AS message;
 
 END $$
@@ -3010,12 +3761,15 @@ DELIMITER ;
 CALL sp_GetDashboardRecentUsers(9);
 
 -- 25. Lịch tập mẫu gần đây --
+DROP PROCEDURE IF EXISTS sp_GetDashboardRecentWorkoutTemplates;
+
 DELIMITER $$
 
 CREATE PROCEDURE sp_GetDashboardRecentWorkoutTemplates(
     IN p_limit INT
 )
 BEGIN
+
     IF p_limit IS NULL OR p_limit <= 0 THEN
         SET p_limit = 5;
     END IF;
@@ -3025,6 +3779,7 @@ BEGIN
         wp.title,
         wp.description,
         wp.level,
+        wp.durationWeeks,
         wp.creatorId,
         wp.createdAt,
 
@@ -3032,28 +3787,701 @@ BEGIN
 
         COUNT(ec.configId) AS totalExercises
 
-    FROM workoutplans wp
+    FROM WorkoutPlans wp
 
-    LEFT JOIN workoutdays wd
+    LEFT JOIN WorkoutDays wd
         ON wd.planId = wp.planId
 
-    LEFT JOIN exerciseconfigs ec
+    LEFT JOIN ExerciseConfigs ec
         ON ec.dayId = wd.dayId
 
-    WHERE wp.isTemplate = 1
+    WHERE wp.isTemplate = TRUE
 
     GROUP BY
         wp.planId,
         wp.title,
         wp.description,
         wp.level,
+        wp.durationWeeks,
         wp.creatorId,
         wp.createdAt
 
     ORDER BY wp.createdAt DESC
 
     LIMIT p_limit;
+
 END $$
 
 DELIMITER ;
 CALL sp_GetDashboardRecentWorkoutTemplates(2);
+
+
+-- =========================================================== --
+-- ========== STORE PHÍA CLIENTS ============================= --
+-- =========================================================== --
+-- 1. Load toàn bộ hồ sơ User --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetMyProfile(
+    IN p_accountId INT
+)
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Accounts
+        WHERE accountId = p_accountId
+          AND role = 'GYM_USER'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Người dùng không tồn tại';
+    END IF;
+
+    SELECT
+        a.accountId,
+        a.username,
+        a.email,
+        a.role,
+        a.status AS accountStatus,
+        a.createdAt,
+
+        gu.profileId,
+        gu.fullName,
+        gu.gender,
+        gu.level,
+        gu.goal,
+        gu.sessionsPerWeek,
+        gu.status AS profileStatus,
+
+        bm.height,
+        bm.weight,
+        bm.recordedAt AS bodyMetricUpdatedAt
+
+    FROM Accounts a
+
+    INNER JOIN GymUsers gu
+        ON gu.accountId = a.accountId
+
+    LEFT JOIN BodyMetrics bm
+        ON bm.metricId = (
+            SELECT bm2.metricId
+            FROM BodyMetrics bm2
+            WHERE bm2.profileId = gu.profileId
+            ORDER BY
+                bm2.recordedAt DESC,
+                bm2.metricId DESC
+            LIMIT 1
+        )
+
+    WHERE a.accountId = p_accountId;
+
+END $$
+
+DELIMITER ; 
+CALL sp_GetMyProfile(1);
+
+-- 2. Cập nhật thông tin Cá nhân --
+DELIMITER $$
+
+CREATE PROCEDURE sp_UpdateMyProfile(
+    IN p_profileId INT,
+    IN p_fullName VARCHAR(100),
+    IN p_gender VARCHAR(20),
+    IN p_level VARCHAR(20),
+    IN p_goal VARCHAR(255),
+    IN p_sessionsPerWeek INT,
+    IN p_height DECIMAL(5,2),
+    IN p_weight DECIMAL(5,2)
+)
+BEGIN
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM GymUsers
+        WHERE profileId = p_profileId
+    ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Người dùng không tồn tại';
+
+    END IF;
+
+
+    IF p_fullName IS NULL OR TRIM(p_fullName) = '' THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Họ tên không được để trống';
+
+    END IF;
+
+
+    IF p_level NOT IN (
+        'BEGINNER',
+        'INTERMEDIATE',
+        'ADVANCED'
+    ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Trình độ tập luyện không hợp lệ';
+
+    END IF;
+
+
+    IF p_sessionsPerWeek IS NOT NULL
+       AND (p_sessionsPerWeek < 1 OR p_sessionsPerWeek > 7) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Số buổi tập mỗi tuần phải từ 1 đến 7';
+
+    END IF;
+
+
+    IF p_height IS NOT NULL AND p_height <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Chiều cao không hợp lệ';
+
+    END IF;
+
+
+    IF p_weight IS NOT NULL AND p_weight <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cân nặng không hợp lệ';
+
+    END IF;
+
+
+    START TRANSACTION;
+
+
+    -- ========================================
+    -- Update GymUser
+    -- ========================================
+
+    UPDATE GymUsers
+    SET
+        fullName = TRIM(p_fullName),
+        gender = p_gender,
+        level = p_level,
+        goal = p_goal,
+        sessionsPerWeek = p_sessionsPerWeek
+
+    WHERE profileId = p_profileId;
+
+
+    -- ========================================
+    -- Lưu lịch sử chiều cao/cân nặng
+    -- ========================================
+
+    INSERT INTO BodyMetrics (
+        profileId,
+        height,
+        weight,
+        recordedAt
+    )
+    VALUES (
+        p_profileId,
+        p_height,
+        p_weight,
+        NOW()
+    );
+
+
+    COMMIT;
+
+
+    SELECT
+        p_profileId AS profileId,
+        'Cập nhật hồ sơ thành công' AS message;
+
+END $$
+
+DELIMITER ;
+
+-- 3. Lấy chương trình đang tập --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetUserActivePlan(
+    IN p_profileId INT
+)
+BEGIN
+
+    SELECT
+        wp.planId,
+        wp.title,
+        wp.description,
+        wp.level,
+        wp.durationWeeks,
+
+        guwp.joinedAt,
+        guwp.startedAt,
+        guwp.status,
+
+        COUNT(DISTINCT wd.dayId) AS totalDays,
+
+        CASE
+            WHEN guwp.startedAt IS NULL THEN 1
+            ELSE LEAST(
+                wp.durationWeeks,
+                TIMESTAMPDIFF(
+                    WEEK,
+                    guwp.startedAt,
+                    CURDATE()
+                ) + 1
+            )
+        END AS currentWeek,
+
+        (
+            SELECT COUNT(*)
+            FROM WorkoutSessions ws
+            WHERE ws.profileId = p_profileId
+              AND ws.status = 'COMPLETED'
+              AND YEARWEEK(ws.startTime, 1)
+                  = YEARWEEK(CURDATE(), 1)
+        ) AS completedThisWeek
+
+    FROM GymUserWorkoutPlans guwp
+
+    INNER JOIN WorkoutPlans wp
+        ON wp.planId = guwp.planId
+
+    LEFT JOIN WorkoutDays wd
+        ON wd.planId = wp.planId
+
+    WHERE guwp.profileId = p_profileId
+      AND guwp.status = 'ACTIVE'
+
+    GROUP BY
+        wp.planId,
+        wp.title,
+        wp.description,
+        wp.level,
+        wp.durationWeeks,
+        guwp.joinedAt,
+        guwp.startedAt,
+        guwp.status
+
+    ORDER BY guwp.joinedAt DESC
+
+    LIMIT 1;
+
+END $$
+
+DELIMITER ;
+
+-- 4. Load bài tập hôm nay --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetTodayWorkout(
+    IN p_profileId INT
+)
+BEGIN
+
+    DECLARE v_planId INT;
+    DECLARE v_dayId INT;
+
+
+    -- ========================================
+    -- Tìm plan đang active
+    -- ========================================
+
+    SELECT guwp.planId
+    INTO v_planId
+
+    FROM GymUserWorkoutPlans guwp
+
+    WHERE guwp.profileId = p_profileId
+      AND guwp.status = 'ACTIVE'
+
+    ORDER BY guwp.joinedAt DESC
+    LIMIT 1;
+
+
+    IF v_planId IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Người dùng chưa có lịch tập đang hoạt động';
+
+    END IF;
+
+
+    -- ========================================
+    -- Tìm ngày tập hôm nay
+    -- WEEKDAY:
+    -- Monday = 0
+    -- => +1 thành 1-7
+    -- ========================================
+
+    SELECT dayId
+    INTO v_dayId
+
+    FROM WorkoutDays
+
+    WHERE planId = v_planId
+      AND weekDay = WEEKDAY(CURDATE()) + 1
+
+    LIMIT 1;
+
+
+    -- ========================================
+    -- RESULT SET 1: Thông tin buổi tập
+    -- ========================================
+
+    SELECT
+        wp.planId,
+        wp.title AS planTitle,
+
+        wd.dayId,
+        wd.dayName,
+
+        COUNT(ec.configId) AS totalExercises,
+
+        COALESCE(
+            SUM(ec.sets),
+            0
+        ) AS totalSets
+
+    FROM WorkoutPlans wp
+
+    LEFT JOIN WorkoutDays wd
+        ON wd.dayId = v_dayId
+
+    LEFT JOIN ExerciseConfigs ec
+        ON ec.dayId = wd.dayId
+
+    WHERE wp.planId = v_planId
+
+    GROUP BY
+        wp.planId,
+        wp.title,
+        wd.dayId,
+        wd.dayName;
+
+
+    -- ========================================
+    -- RESULT SET 2: Exercises
+    -- ========================================
+
+    SELECT
+        ec.configId,
+        ec.exerciseId,
+
+        e.name AS exerciseName,
+        e.description,
+        e.difficulty,
+
+        ec.sets,
+        ec.reps,
+        ec.restTime,
+        ec.`order` AS exerciseOrder,
+
+        (
+            SELECT em.mediaUrl
+
+            FROM ExerciseMedia em
+
+            WHERE em.exerciseId = e.exerciseId
+
+            ORDER BY
+                CASE
+                    WHEN em.mediaType = 'IMAGE' THEN 0
+                    ELSE 1
+                END,
+                em.sortOrder,
+                em.mediaId
+
+            LIMIT 1
+
+        ) AS preview
+
+    FROM ExerciseConfigs ec
+
+    INNER JOIN Exercises e
+        ON e.exerciseId = ec.exerciseId
+
+    WHERE ec.dayId = v_dayId
+
+    ORDER BY ec.`order`;
+
+END $$
+
+DELIMITER ;
+
+-- 5. Tổng quan Tiến trình --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetUserProgressSummary(
+    IN p_profileId INT
+)
+BEGIN
+
+    DECLARE v_totalSessions INT DEFAULT 0;
+    DECLARE v_totalVolume DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_streak INT DEFAULT 0;
+    DECLARE v_latestWorkout DATE;
+
+
+    -- ========================================
+    -- Tổng số buổi hoàn thành
+    -- ========================================
+
+    SELECT COUNT(*)
+
+    INTO v_totalSessions
+
+    FROM WorkoutSessions
+
+    WHERE profileId = p_profileId
+      AND status = 'COMPLETED';
+
+
+    -- ========================================
+    -- Tổng volume
+    -- weight * reps
+    -- ========================================
+
+    SELECT
+        COALESCE(
+            SUM(es.weight * es.reps),
+            0
+        )
+
+    INTO v_totalVolume
+
+    FROM WorkoutSessions ws
+
+    INNER JOIN PerformedExercises pe
+        ON pe.workoutSessionId = ws.workoutSessionId
+
+    INNER JOIN ExerciseSets es
+        ON es.performedExerciseId =
+           pe.performedExerciseId
+
+    WHERE ws.profileId = p_profileId
+      AND ws.status = 'COMPLETED';
+
+
+    -- ========================================
+    -- Ngày tập gần nhất
+    -- ========================================
+
+    SELECT MAX(DATE(startTime))
+
+    INTO v_latestWorkout
+
+    FROM WorkoutSessions
+
+    WHERE profileId = p_profileId
+      AND status = 'COMPLETED';
+
+
+    -- ========================================
+    -- Streak
+    -- MySQL 8+
+    -- ========================================
+
+    IF v_latestWorkout IS NOT NULL
+       AND DATEDIFF(
+           CURDATE(),
+           v_latestWorkout
+       ) <= 1 THEN
+
+        WITH workout_dates AS (
+
+            SELECT DISTINCT
+                DATE(startTime) AS workoutDate
+
+            FROM WorkoutSessions
+
+            WHERE profileId = p_profileId
+              AND status = 'COMPLETED'
+
+        ),
+
+        ranked AS (
+
+            SELECT
+                workoutDate,
+
+                ROW_NUMBER() OVER (
+                    ORDER BY workoutDate DESC
+                ) AS rn,
+
+                MAX(workoutDate) OVER () AS maxDate
+
+            FROM workout_dates
+
+        )
+
+        SELECT COUNT(*)
+
+        INTO v_streak
+
+        FROM ranked
+
+        WHERE DATEDIFF(
+            maxDate,
+            workoutDate
+        ) = rn - 1;
+
+    END IF;
+
+
+    SELECT
+        v_totalSessions AS totalSessions,
+
+        ROUND(
+            v_totalVolume / 1000,
+            1
+        ) AS totalVolumeTon,
+
+        v_streak AS currentStreak;
+
+END $$
+
+DELIMITER ;
+
+-- 6. Personal Record / PR --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetUserPersonalRecords(
+    IN p_profileId INT
+)
+BEGIN
+
+    SELECT
+        e.exerciseId,
+        e.name AS exerciseName,
+
+        MAX(es.weight) AS maxWeight,
+
+        MAX(ws.endTime) AS latestWorkout
+
+    FROM WorkoutSessions ws
+
+    INNER JOIN PerformedExercises pe
+        ON pe.workoutSessionId =
+           ws.workoutSessionId
+
+    INNER JOIN Exercises e
+        ON e.exerciseId =
+           pe.exerciseId
+
+    INNER JOIN ExerciseSets es
+        ON es.performedExerciseId =
+           pe.performedExerciseId
+
+    WHERE ws.profileId = p_profileId
+      AND ws.status = 'COMPLETED'
+
+    GROUP BY
+        e.exerciseId,
+        e.name
+
+    ORDER BY maxWeight DESC;
+
+END $$
+
+DELIMITER ;
+
+-- 7. Lịch sử tập luyện --
+DELIMITER $$
+
+CREATE PROCEDURE sp_GetUserWorkoutHistory(
+    IN p_profileId INT,
+    IN p_period VARCHAR(20)
+)
+BEGIN
+
+    SELECT
+        ws.workoutSessionId,
+
+        ws.startTime,
+        ws.endTime,
+        ws.totalDuration,
+        ws.status,
+
+        wd.dayId,
+        wd.dayName,
+
+        wp.planId,
+        wp.title AS planTitle,
+
+        COUNT(
+            DISTINCT pe.performedExerciseId
+        ) AS totalExercises,
+
+        COALESCE(
+            SUM(es.weight * es.reps),
+            0
+        ) AS totalVolume
+
+    FROM WorkoutSessions ws
+
+    LEFT JOIN WorkoutDays wd
+        ON wd.dayId = ws.dayId
+
+    LEFT JOIN WorkoutPlans wp
+        ON wp.planId = wd.planId
+
+    LEFT JOIN PerformedExercises pe
+        ON pe.workoutSessionId =
+           ws.workoutSessionId
+
+    LEFT JOIN ExerciseSets es
+        ON es.performedExerciseId =
+           pe.performedExerciseId
+
+    WHERE ws.profileId = p_profileId
+
+      AND ws.status = 'COMPLETED'
+
+      AND (
+
+          p_period = 'ALL'
+
+          OR
+
+          (
+              p_period = 'WEEK'
+              AND YEARWEEK(ws.startTime, 1)
+                  = YEARWEEK(CURDATE(), 1)
+          )
+
+          OR
+
+          (
+              p_period = 'MONTH'
+              AND YEAR(ws.startTime)
+                    = YEAR(CURDATE())
+              AND MONTH(ws.startTime)
+                    = MONTH(CURDATE())
+          )
+
+      )
+
+    GROUP BY
+        ws.workoutSessionId,
+        ws.startTime,
+        ws.endTime,
+        ws.totalDuration,
+        ws.status,
+        wd.dayId,
+        wd.dayName,
+        wp.planId,
+        wp.title
+
+    ORDER BY ws.startTime DESC;
+
+END $$
+
+DELIMITER ;
+
+

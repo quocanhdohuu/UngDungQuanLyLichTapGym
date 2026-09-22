@@ -90,8 +90,9 @@ const DashboardController = {
   },
 
   getRecentWorkoutTemplates: async (req, res) => {
-    const limit = Number(req.query.limit || 5);
-    if (!Number.isInteger(limit) || limit <= 0) {
+    const limit = req.query.limit == null || req.query.limit === ""
+      ? null : Number(req.query.limit);
+    if (limit !== null && (!Number.isInteger(limit) || limit < -2147483648 || limit > 2147483647)) {
       return res.status(400).json({ message: "limit không hợp lệ" });
     }
 

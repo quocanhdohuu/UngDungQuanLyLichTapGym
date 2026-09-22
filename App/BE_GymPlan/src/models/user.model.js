@@ -1,0 +1,96 @@
+const db = require("../common/db");
+const Workoutplans = require("./workoutplans.model");
+
+const call = async (sql, params) => {
+  const [result] = await db.promise().query(sql, params);
+  return result;
+};
+
+const User = {
+  getLoginSession: async (accountId, loginSessionId) => {
+    const [rows] = await db.promise().query(
+      `SELECT gu.profileId FROM LoginSessions ls
+       JOIN Accounts a ON a.accountId = ls.accountId
+       JOIN GymUsers gu ON gu.accountId = a.accountId
+       WHERE ls.accountId = ? AND ls.loginSessionId = ?
+         AND ls.status = 'ACTIVE' AND ls.expiration > NOW()
+         AND a.role = 'GYM_USER' AND a.status = 'ACTIVE' AND gu.status = 'ACTIVE'`,
+      [accountId, loginSessionId],
+    );
+    return rows[0] || null;
+  },
+
+  getProfile: async (accountId) =>
+    (await call("CALL sp_GetMyProfile(?)", [accountId]))[0]?.[0] || null,
+
+  updateProfile: async (profileId, data) => {
+    await call("CALL sp_UpdateMyProfile(?, ?, ?, ?, ?, ?, ?, ?)", [
+      profileId, data.fullName, data.gender, data.level, data.goal,
+      data.sessionsPerWeek, data.height, data.weight,
+    ]);
+    const [rows] = await db.promise().query(
+      "SELECT accountId FROM GymUsers WHERE profileId = ?", [profileId],
+    );
+    return rows[0] ? User.getProfile(rows[0].accountId) : null;
+  },
+
+  getActivePlan: async (profileId) => {
+    const plan = (await call("CALL sp_GetUserActivePlan(?)", [profileId]))[0]?.[0];
+    if (!plan) return null;
+    const detail = await Workoutplans.getDetail(plan.planId);
+    return { ...plan, days: detail?.days || [] };
+  },
+
+  getTodayWorkout: async (profileId) => {
+    try {
+      const result = await call("CALL sp_GetTodayWorkout(?)", [profileId]);
+      const workout = result[0]?.[0];
+      return workout?.dayId ? { ...workout, exercises: result[1] || [] } : null;
+    } catch (error) {
+      // This procedure signals the absence of an active plan as a business case.
+      if (error.sqlState === "45000" &&
+        error.sqlMessage === "Người dùng chưa có lịch tập đang hoạt động") return null;
+      throw error;
+    }
+  },
+
+  getProgressSummary: async (profileId) =>
+    (await call("CALL sp_GetUserProgressSummary(?)", [profileId]))[0]?.[0] || null,
+  getPersonalRecords: async (profileId) =>
+    (await call("CALL sp_GetUserPersonalRecords(?)", [profileId]))[0] || [],
+  getWorkoutHistory: async (profileId, period) =>
+    (await call("CALL sp_GetUserWorkoutHistory(?, ?)", [profileId, period]))[0] || [],
+
+  getWorkoutDetail: async (profileId, workoutSessionId) => {
+    const [sessions] = await db.promise().query(
+      `SELECT workoutSessionId FROM WorkoutSessions
+       WHERE profileId = ? AND workoutSessionId = ? AND status = 'COMPLETED'`,
+      [profileId, workoutSessionId],
+    );
+    if (!sessions.length) return null;
+    const [rows] = await db.promise().query(
+      `SELECT pe.performedExerciseId, pe.exerciseId, e.name AS exerciseName,
+              es.setId, es.setNumber, es.weight, es.reps
+       FROM PerformedExercises pe
+       JOIN Exercises e ON e.exerciseId = pe.exerciseId
+       LEFT JOIN ExerciseSets es ON es.performedExerciseId = pe.performedExerciseId
+       WHERE pe.workoutSessionId = ?
+       ORDER BY pe.performedExerciseId, es.setNumber`, [workoutSessionId],
+    );
+    const exercises = new Map();
+    for (const row of rows) {
+      if (!exercises.has(row.performedExerciseId)) {
+        exercises.set(row.performedExerciseId, {
+          performedExerciseId: row.performedExerciseId, exerciseId: row.exerciseId,
+          exerciseName: row.exerciseName, sets: [],
+        });
+      }
+      if (row.setId != null) exercises.get(row.performedExerciseId).sets.push({
+        setId: row.setId, setNumber: row.setNumber, weight: row.weight, reps: row.reps,
+      });
+    }
+    return { workoutSessionId, exercises: [...exercises.values()] };
+  },
+};
+
+module.exports = User;
