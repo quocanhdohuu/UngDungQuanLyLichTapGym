@@ -65,6 +65,89 @@ const getMediaType = (url) => {
   return "image";
 };
 
+const getExercisePreviewMedia = (exercise) => {
+  const media = Array.isArray(exercise?.media)
+    ? [...exercise.media]
+        .filter((item) => item?.mediaUrl)
+        .sort(
+          (a, b) =>
+            Number(a.sortOrder) - Number(b.sortOrder) ||
+            Number(a.mediaId) - Number(b.mediaId),
+        )
+    : [];
+
+  return (
+    media.find((item) => String(item.mediaType).toUpperCase() === "IMAGE") ||
+    media.find((item) => String(item.mediaType).toUpperCase() === "VIDEO") ||
+    (exercise?.preview ? { mediaUrl: exercise.preview } : null)
+  );
+};
+
+const loadExerciseMedia = async (exerciseList) =>
+  Promise.all(
+    exerciseList.map(async (exercise) => {
+      if (!exercise.exerciseId) return exercise;
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/exercises/${exercise.exerciseId}`,
+        );
+        if (!response.ok) return exercise;
+
+        const detail = await response.json();
+        return {
+          ...exercise,
+          media: Array.isArray(detail.media) ? detail.media : [],
+        };
+      } catch {
+        return exercise;
+      }
+    }),
+  );
+
+function ExercisePreview({ exercise }) {
+  const [failed, setFailed] = useState(false);
+  const previewMedia = getExercisePreviewMedia(exercise);
+
+  if (!previewMedia || failed) {
+    return (
+      <div
+        className="exercise-preview empty"
+        aria-label={`Preview ${exercise.name}`}
+      />
+    );
+  }
+
+  const mediaType =
+    String(previewMedia.mediaType).toUpperCase() === "VIDEO"
+      ? "video"
+      : getMediaType(previewMedia.mediaUrl);
+
+  if (mediaType === "video") {
+    return (
+      <video
+        className="exercise-video-preview"
+        src={previewMedia.mediaUrl}
+        muted
+        preload="metadata"
+        playsInline
+        onError={() => setFailed(true)}
+        aria-label={`Preview ${exercise.name}`}
+      />
+    );
+  }
+
+  return (
+    <img
+      className="exercise-image-preview"
+      src={previewMedia.mediaUrl}
+      alt={exercise.name}
+      onError={() => setFailed(true)}
+      aria-label={`Preview ${exercise.name}`}
+    />
+  );
+}
+
 const ExercisesPage = () => {
   const [exercises, setExercises] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,7 +183,7 @@ const ExercisesPage = () => {
     if (!response.ok)
       throw new Error(`Request failed with status ${response.status}`);
     const data = await response.json();
-    setExercises(Array.isArray(data) ? data : []);
+    setExercises(await loadExerciseMedia(Array.isArray(data) ? data : []));
   };
 
   useEffect(() => {
@@ -115,7 +198,11 @@ const ExercisesPage = () => {
         if (!response.ok)
           throw new Error(`Request failed with status ${response.status}`);
         const data = await response.json();
-        if (isMounted) setExercises(Array.isArray(data) ? data : []);
+        if (isMounted) {
+          setExercises(
+            await loadExerciseMedia(Array.isArray(data) ? data : []),
+          );
+        }
       } catch (err) {
         console.error("Failed to fetch exercises:", err);
 
@@ -483,41 +570,6 @@ const ExercisesPage = () => {
     setCurrentPage(1);
   };
 
-  const renderPreview = (exercise) => {
-    if (!exercise.preview || !String(exercise.preview).trim()) {
-      return (
-        <div
-          className="exercise-preview empty"
-          aria-label={`Preview ${exercise.name}`}
-        />
-      );
-    }
-
-    const mediaType = getMediaType(exercise.preview);
-
-    if (mediaType === "video") {
-      return (
-        <video
-          className="exercise-video-preview"
-          src={exercise.preview}
-          muted
-          preload="metadata"
-          playsInline
-          aria-label={`Preview ${exercise.name}`}
-        />
-      );
-    }
-
-    return (
-      <img
-        className="exercise-image-preview"
-        src={exercise.preview}
-        alt={exercise.name}
-        aria-label={`Preview ${exercise.name}`}
-      />
-    );
-  };
-
   const shownStart = filteredExercises.length === 0 ? 0 : startIndex + 1;
   const shownEnd = Math.min(startIndex + PAGE_SIZE, filteredExercises.length);
 
@@ -640,7 +692,9 @@ const ExercisesPage = () => {
                       }
                     >
                       <td className="exercise-stt">{rowNumber}</td>
-                      <td>{renderPreview(exercise)}</td>
+                      <td>
+                        <ExercisePreview exercise={exercise} />
+                      </td>
                       <td className="exercise-name-cell">
                         <strong>{exercise.name}</strong>
                       </td>
