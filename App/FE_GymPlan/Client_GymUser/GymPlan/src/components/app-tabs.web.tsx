@@ -20,7 +20,7 @@ const tabs = [
   },
   {
     label: "Thư viện",
-    route: "/templates",
+    route: "/exercises",
     icon: {
       ios: "books.vertical.fill",
       android: "library_books",
@@ -61,6 +61,7 @@ export default function AppTabs() {
             <Pressable
               key={tab.route}
               accessibilityRole="tab"
+              accessibilityLabel={tab.label}
               accessibilityState={{ selected: isActive }}
               onPress={() => router.replace(tab.route as Href)}
               style={styles.tab}

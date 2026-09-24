@@ -1,4 +1,5 @@
 import { DataState } from "@/components/common/data-state";
+import { router } from "expo-router";
 import { useApiData } from "@/hooks/use-api-data";
 import { formatDate, formatNumber, Period, ProgressSummary, WorkoutHistory, userApi } from "@/services/user-api";
 import { SharedHeader } from "@/components/common/shared-header";
@@ -136,12 +137,13 @@ export default function ProgressScreen() {
             <View style={styles.detailTitleRow}>
               <Text style={styles.detailTitle}>{record.exerciseName}</Text>
               <Text style={styles.recordBadge}>★ {formatNumber(record.maxWeight)} KG</Text>
+              {record.achievedAt && new Date(record.achievedAt).toDateString() === new Date().toDateString() && <Text style={styles.recordBadge}>PR MỚI</Text>}
             </View>
             <Text style={styles.compactHint}>Tập gần nhất: {formatDate(record.latestWorkout)}</Text>
           </View>)}
         </View>}
-        <Pressable style={styles.previousButton} onPress={() => { void refresh(); }}>
-          <Text style={styles.previousText}>◴ Làm mới dữ liệu</Text>
+        <Pressable style={styles.previousButton} onPress={() => router.push("/history")}>
+          <Text style={styles.previousText}>◴ Xem lịch sử tập luyện</Text>
         </Pressable>
         <Text style={styles.cloudText}>{history.data ? `${history.data.length} buổi tập` : ""}</Text>
       </ScrollView>

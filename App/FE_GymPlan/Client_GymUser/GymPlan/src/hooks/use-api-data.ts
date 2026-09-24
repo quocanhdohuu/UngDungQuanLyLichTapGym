@@ -3,7 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 // Each focus/filter change cancels older requests, including results from another login.
-export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key = "") {
+export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key = "", keepData = false) {
   const session = useAuthSession();
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
@@ -17,7 +17,7 @@ export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key =
     request.current = controller;
     setLoading(true);
     setError(null);
-    setData(null);
+    if (!keepData) setData(null);
     try {
       const result = await loaderRef.current(controller.signal);
       if (!controller.signal.aborted) setData(result);
@@ -28,7 +28,7 @@ export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key =
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [key, session?.loginSessionId]);
+  }, [key, session?.loginSessionId, keepData]);
 
   useFocusEffect(useCallback(() => {
     void refresh();

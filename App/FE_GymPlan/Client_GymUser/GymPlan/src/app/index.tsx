@@ -291,7 +291,7 @@ export default function HomeScreen() {
           username: user.username, email: user.email, fullName: user.fullName,
           gender: user.gender, level: user.level, goal: user.goal,
           sessionsPerWeek: user.sessionsPerWeek,
-        });
+        }, remember);
         router.replace("/home");
         return;
       }

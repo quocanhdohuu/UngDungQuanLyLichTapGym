@@ -64,7 +64,7 @@ Gymusers.update = (gymusers, profileId, callback) => {
   db.query(
     sqlString,
     [
-      profileId,
+      Number(profileId),
       gymusers.username,
       gymusers.email,
       gymusers.fullName,

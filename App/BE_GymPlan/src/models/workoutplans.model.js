@@ -23,7 +23,7 @@ Workoutplans.getById = (planId, callback) => {
 Workoutplans.getTemplates = async () => {
   const [result] = await db
     .promise()
-    .query("CALL sp_GetWorkoutPlanTemplates()");
+    .query("CALL sp_GetWorkoutPlanTemplates()", []);
   return result[0] || [];
 };
 

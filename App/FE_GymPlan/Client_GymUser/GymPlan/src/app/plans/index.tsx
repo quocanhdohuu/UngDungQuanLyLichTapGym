@@ -1,3 +1,5 @@
+import { router } from "expo-router";
+import { useStartWorkout } from "@/hooks/use-start-workout";
 import { DataState } from "@/components/common/data-state";
 import { useApiData } from "@/hooks/use-api-data";
 import { ActivePlan, PlanExercise, levelLabel, userApi } from "@/services/user-api";
@@ -68,12 +70,10 @@ function ExerciseRow({
         <Text style={styles.rest}>• {exercise.restTime}s nghỉ</Text>
       </View>
       <View style={styles.exerciseActions}>
-        <Pressable hitSlop={8}>
+        <Pressable hitSlop={8} onPress={() => router.push({ pathname: "/exercises/[id]", params: { id: exercise.exerciseId } })}>
           <Text style={styles.editIcon}>⌕</Text>
         </Pressable>
-        <Pressable hitSlop={8}>
-          <Text style={styles.deleteIcon}>▥</Text>
-        </Pressable>
+
       </View>
     </View>
   );
@@ -127,6 +127,7 @@ function WorkoutDay({
 }
 
 export default function PlansScreen() {
+  const workout = useStartWorkout();
   const state = useApiData(async (signal) => {
     const [plan, today] = await Promise.all([userApi.activePlan(signal), userApi.todayWorkout(signal)]);
     return { plan, today };
@@ -162,11 +163,11 @@ export default function PlansScreen() {
           <Text style={styles.heading}>Chương trình của tôi</Text>
           {plan && <RoutineCard plan={plan} />}
           <View style={styles.actionRow}>
-            <Pressable style={styles.actionButton}>
+            <Pressable style={styles.actionButton} onPress={() => router.push("/plans/create")}>
               <Text style={styles.actionPlus}>＋</Text>
               <Text style={styles.actionText}>Tạo lịch mới</Text>
             </Pressable>
-            <Pressable style={styles.actionButton}>
+            <Pressable style={styles.actionButton} onPress={() => router.push("/templates")}>
               <Text style={styles.actionIcon}>▣</Text>
               <Text style={styles.actionText}>Tham gia mẫu</Text>
             </Pressable>
@@ -182,9 +183,10 @@ export default function PlansScreen() {
               today={today?.dayId === day.dayId} exercises={day.exercises} />
           ))}
           {plan && !plan.days.length && <Text style={styles.dayDetails}>Chưa có ngày tập</Text>}
-          <Pressable style={styles.startButton} disabled={!today}>
+          <DataState loading={false} error={workout.error} />
+          <Pressable style={styles.startButton} disabled={!expandedDay || workout.busy} onPress={() => workout.start(expandedDay)}>
             <Text style={styles.playIcon}>▶</Text>
-            <Text style={styles.startText}>{today ? `START WORKOUT (${today.dayName})` : "Hôm nay không có buổi tập"}</Text>
+            <Text style={styles.startText}>{workout.busy ? "ĐANG MỞ…" : expandedDay ? `START WORKOUT (${plan?.days.find(day => day.dayId === expandedDay)?.dayName})` : "Chọn ngày tập"}</Text>
           </Pressable>
         </>}
       </ScrollView>

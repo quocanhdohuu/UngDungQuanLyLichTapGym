@@ -43,6 +43,7 @@ export type WorkoutDay = {
   dayId: number;
   dayName: string;
   dayOrder: number;
+  weekDay?: number | null;
   exercises: PlanExercise[];
 };
 export type ActivePlan = {
@@ -75,6 +76,7 @@ export type PersonalRecord = {
   exerciseName: string;
   maxWeight: number | string | null;
   latestWorkout: string | null;
+  achievedAt?: string | null;
 };
 export type Period = "ALL" | "WEEK" | "MONTH";
 export type WorkoutHistory = {
@@ -89,8 +91,18 @@ export type WorkoutHistory = {
 };
 export type WorkoutDetail = {
   workoutSessionId: number;
+  dayId: number | null;
+  dayName: string | null;
+  planTitle: string | null;
+  startTime: string;
+  endTime: string | null;
+  totalDuration: number | null;
+  status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  prescription: PlanExercise[];
   exercises: {
     performedExerciseId: number;
+    exerciseId: number;
+    isCompleted: boolean;
     exerciseName: string;
     sets: {
       setId: number;
@@ -100,6 +112,17 @@ export type WorkoutDetail = {
     }[];
   }[];
 };
+export type ExerciseSet = WorkoutDetail["exercises"][number]["sets"][number];
+export type WorkoutSession = Omit<WorkoutDetail, "exercises" | "prescription">;
+export type PerformedExercise = WorkoutDetail["exercises"][number];
+export type PreviousPerformance = Pick<ExerciseSet, "setNumber" | "weight" | "reps">;
+export type Template = Pick<ActivePlan, "planId" | "title" | "description" | "level" | "durationWeeks" | "totalDays">;
+export type TemplateDetail = Template & { days: WorkoutDay[]; isTemplate: boolean; creatorId: number };
+export type CustomPlan = {
+  title: string; description: string; level: Level; durationWeeks: number;
+  days: { dayName: string; weekDay: number; exercises: { exerciseId: number; sets: number; reps: number; restTime: number }[] }[];
+};
+export type BodyMetricItem = { metricId: number; height: number | string; weight: number | string; recordedAt: string };
 export type LibraryExercise = {
   exerciseId: number;
   name: string;
@@ -114,11 +137,31 @@ export type LibraryExercise = {
 
 const userPath = (path: string) =>
   `/api/user/${requireAuthSession().profileId}/${path}`;
+const write = <T>(path: string, method: string, body = {}) => apiRequest<T>(userPath(path), { method, body: JSON.stringify(body) });
 export const userApi = {
-  profile: (signal?: AbortSignal) =>
-    apiRequest<Profile>(`/api/user/profile/${requireAuthSession().accountId}`, {
-      signal,
-    }),
+  getTemplates: (signal?: AbortSignal) => apiRequest<Template[]>("/workoutplans/templates", { signal }),
+  getTemplateDetail: (id: number, signal?: AbortSignal) => apiRequest<TemplateDetail>(`/workoutplans/${id}/detail`, { signal, rawResponse: true }),
+  exerciseDetail: (id: number, signal?: AbortSignal) => apiRequest<LibraryExercise>(`/api/exercises/${id}`, { signal, rawResponse: true }),
+  applyPlan: (planId: number) => write("apply-plan", "POST", { planId }),
+  createCustomPlan: (plan: CustomPlan) => write<{ planId: number }>("plans", "POST", plan),
+  activeSession: (signal?: AbortSignal) => apiRequest<WorkoutDetail | null>(userPath("active-session"), { signal }),
+  startSession: (dayId?: number) => write<WorkoutSession>("workout-sessions", "POST", { dayId }),
+  addExerciseToSession: (id: number, exerciseId: number) => write<{ performedExerciseId: number }>(`workout-sessions/${id}/exercises`, "POST", { exerciseId }),
+  addSet: (id: number, setNumber: number, weight: number, reps: number, preValue: number | null) => write<ExerciseSet>(`performed-exercises/${id}/sets`, "POST", { setNumber, weight, reps, preValue }),
+  updateSet: (id: number, weight: number, reps: number) => write<ExerciseSet>(`exercise-sets/${id}`, "PUT", { weight, reps }),
+  deleteSet: (id: number) => write(`exercise-sets/${id}`, "DELETE"),
+  completeExercise: (id: number) => write(`performed-exercises/${id}/complete`, "PUT"),
+  completeSession: (id: number) => write(`workout-sessions/${id}/complete`, "PUT"),
+  cancelSession: (id: number) => write(`workout-sessions/${id}/cancel`, "PUT"),
+  getPreviousPerformance: (id: number, signal?: AbortSignal) => apiRequest<PreviousPerformance[]>(userPath(`exercises/${id}/previous-performance`), { signal }),
+  bodyMetrics: (signal?: AbortSignal) => apiRequest<BodyMetricItem[]>(userPath("body-metrics"), { signal }),
+  changePassword: (oldPassword: string, newPassword: string, confirmPassword: string) => apiRequest(`/api/user/profile/${requireAuthSession().accountId}/change-password`, { method: "PUT", body: JSON.stringify({ oldPassword, newPassword, confirmPassword }) }),
+  profile: async (signal?: AbortSignal) => {
+    const session = requireAuthSession();
+    const profile = await apiRequest<Profile>(`/api/user/profile/${session.accountId}`, { signal });
+    if (!signal?.aborted && getAuthSession()?.loginSessionId === session.loginSessionId) updateAuthProfile(profile);
+    return profile;
+  },
   updateProfile: async (data: ProfileUpdate) => {
     const session = requireAuthSession();
     const profile = await apiRequest<Profile>(

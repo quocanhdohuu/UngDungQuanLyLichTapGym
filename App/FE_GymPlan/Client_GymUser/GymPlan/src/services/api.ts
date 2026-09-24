@@ -1,4 +1,4 @@
-import { getAuthSession } from "@/auth-session";
+import { clearAuthSession, getAuthSession } from "@/auth-session";
 import { Platform } from "react-native";
 
 export const API_BASE_URL = (
@@ -10,8 +10,10 @@ export const API_BASE_URL = (
 
 export async function apiRequest<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { rawResponse?: boolean } = {},
 ): Promise<T> {
+  const { rawResponse, ...requestOptions } = options;
+  const session = getAuthSession();
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort);
@@ -19,23 +21,26 @@ export async function apiRequest<T>(
   const timeout = setTimeout(abort, 15000);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
+      ...requestOptions,
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        ...(getAuthSession()?.accessToken
-          ? { Authorization: `Bearer ${getAuthSession()!.accessToken}` }
+        ...(session?.accessToken
+          ? { Authorization: `Bearer ${session.accessToken}` }
           : {}),
         ...options.headers,
       },
     });
     const payload = await response.json().catch(() => null);
+    if (response.status === 401 && session && getAuthSession()?.loginSessionId === session.loginSessionId)
+      clearAuthSession();
     if (!response.ok)
       throw new Error(
         payload?.message || `Không thể tải dữ liệu (${response.status}).`,
       );
     // Existing exercise endpoints return a bare array; user endpoints use { data }.
     if (Array.isArray(payload)) return payload as T;
+    if (rawResponse && payload) return payload as T;
     if (!payload || !("data" in payload))
       throw new Error("Phản hồi API không hợp lệ.");
     return payload.data as T;

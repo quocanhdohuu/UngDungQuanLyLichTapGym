@@ -1,3 +1,4 @@
+import { useStartWorkout } from "@/hooks/use-start-workout";
 import { DataState } from "@/components/common/data-state";
 import { useApiData } from "@/hooks/use-api-data";
 import { formatNumber, levelLabel, userApi } from "@/services/user-api";
@@ -19,11 +20,11 @@ const colors = {
   orange: "#FF6D35",
 };
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({ title, action, onPress }: { title: string; action?: string; onPress?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {action ? <Text style={styles.sectionAction}>{action}</Text> : null}
+      {action ? <Text onPress={onPress} style={styles.sectionAction}>{action}</Text> : null}
     </View>
   );
 }
@@ -106,12 +107,13 @@ function ExerciseRow({
 }
 
 export default function HomeScreen() {
+  const workout = useStartWorkout();
   const state = useApiData(async (signal) => {
-    const [profile, plan, today, summary, records, history] = await Promise.all([
+    const [profile, plan, today, summary, records, history, activeSession] = await Promise.all([
       userApi.profile(signal), userApi.activePlan(signal), userApi.todayWorkout(signal),
-      userApi.progressSummary(signal), userApi.personalRecords(signal), userApi.history("WEEK", signal),
+      userApi.progressSummary(signal), userApi.personalRecords(signal), userApi.history("WEEK", signal), userApi.activeSession(signal),
     ]);
-    return { profile, plan, today, summary, records, history };
+    return { profile, plan, today, summary, records, history, activeSession };
   });
   const { profile, plan, today, summary, records = [], history = [] } = state.data || {};
   const weeklyVolume = history.reduce((sum, item) => sum + Number(item.totalVolume), 0) / 1000;
@@ -136,6 +138,7 @@ export default function HomeScreen() {
         />
 
         <DataState {...state} retry={state.refresh} />
+        <DataState loading={false} error={workout.error} />
         {state.data && <>
           <View style={styles.greetingRow}>
             <View style={styles.greetingCopy}>
@@ -170,14 +173,14 @@ export default function HomeScreen() {
                   <View key={index} style={[styles.progressSegment, index < completed && styles.progressActive]} />
                 ))}
               </View>
-              <Pressable style={styles.startButton} disabled={!today}>
+              <Pressable style={styles.startButton} disabled={(!today && !state.data?.activeSession) || workout.busy} onPress={() => workout.start(today?.dayId)}>
                 <Text style={styles.startIcon}>▶</Text>
-                <Text style={styles.startText}>START WORKOUT</Text>
+                <Text style={styles.startText}>{workout.busy ? "ĐANG MỞ…" : state.data?.activeSession ? "TIẾP TỤC BUỔI TẬP" : "START WORKOUT"}</Text>
               </Pressable>
             </View>
           </View>
 
-          <SectionHeader title="TIẾN TRÌNH TUẦN NÀY" action="Chi tiết →" />
+          <SectionHeader title="TIẾN TRÌNH TUẦN NÀY" action="Chi tiết →" onPress={() => router.push("/progress")} />
           <View style={styles.statsRow}>
             <StatCard label="Số buổi" value={String(completed)} suffix={target ? `/${target}` : ""}>
               <View style={styles.miniDots}>
@@ -212,7 +215,7 @@ export default function HomeScreen() {
 
           <SectionHeader title="LỐI TẮT NHANH" />
           <View style={styles.shortcutsGrid}>
-            <Pressable style={styles.shortcut}>
+            <Pressable style={styles.shortcut} onPress={() => router.push("/plans")}>
               <Text style={styles.shortcutIcon}>▣</Text>
               <View>
                 <Text style={styles.shortcutTitle}>Lịch tập</Text>
@@ -220,7 +223,7 @@ export default function HomeScreen() {
               </View>
             </Pressable>
             <Pressable
-              onPress={() => router.push("/templates")}
+              onPress={() => router.push("/exercises")}
               style={styles.shortcut}
             >
               <Text style={styles.shortcutIcon}>▤</Text>
@@ -229,14 +232,14 @@ export default function HomeScreen() {
                 <Text style={styles.shortcutDetail}>Khám phá bài tập</Text>
               </View>
             </Pressable>
-            <Pressable style={styles.shortcut}>
+            <Pressable style={styles.shortcut} onPress={() => router.push("/templates")}>
               <Text style={styles.shortcutIcon}>✣</Text>
               <View>
                 <Text style={styles.shortcutTitle}>Lịch mẫu</Text>
                 <Text style={styles.shortcutDetail}>Khám phá lịch mẫu</Text>
               </View>
             </Pressable>
-            <Pressable style={styles.shortcut}>
+            <Pressable style={styles.shortcut} onPress={() => router.push("/history")}>
               <Text style={styles.shortcutIcon}>◷</Text>
               <View>
                 <Text style={styles.shortcutTitle}>Lịch sử</Text>

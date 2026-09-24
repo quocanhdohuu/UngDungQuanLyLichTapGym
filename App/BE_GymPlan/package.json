@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js",
+    "db:workout-flow": "node test/run_sql.js",
+    "test:ui": "node test/mobile-ui.smoke.js"
   },
   "keywords": [],
   "author": "",

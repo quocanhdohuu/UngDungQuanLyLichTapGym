@@ -1,4 +1,5 @@
 import { DataState } from "@/components/common/data-state";
+import { ChangePassword } from "@/components/common/change-password";
 import { useApiData } from "@/hooks/use-api-data";
 import { apiRequest } from "@/services/api";
 import { formatDate, levelLabel, Profile, ProfileUpdate, userApi } from "@/services/user-api";
@@ -136,6 +137,7 @@ function AccountRow({
 }
 
 export default function ProfileScreen() {
+  const [changingPassword, setChangingPassword] = useState(false);
   const state = useApiData(userApi.profile);
   const profile = state.data;
   const [fullName, setFullName] = useState("");
@@ -288,7 +290,7 @@ export default function ProfileScreen() {
             <Text style={styles.accountHeaderIcon}>☷</Text>
             <Text style={styles.accountHeaderTitle}>Cài đặt tài khoản</Text>
           </View>
-          <AccountRow icon="▣" title="Đổi mật khẩu & Bảo mật" />
+          <AccountRow icon="▣" title="Đổi mật khẩu & Bảo mật" onPress={() => setChangingPassword(true)} />
           <AccountRow
             icon="⇥"
             title={loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
@@ -297,6 +299,7 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
+      <ChangePassword visible={changingPassword} onClose={() => setChangingPassword(false)} />
     </SafeAreaView>
   );
 }

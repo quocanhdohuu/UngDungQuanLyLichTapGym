@@ -32,13 +32,21 @@ Exercises.getDetailsById = async (exerciseId) => {
   const [muscleGroups] = await db
     .promise()
     .query(
-      "SELECT groupId, role FROM `exercisemusclegroups` WHERE exerciseId = ? ORDER BY exerciseMuscleGroupId",
+      `SELECT emg.groupId, emg.role, mg.groupName
+       FROM exercisemusclegroups emg
+       LEFT JOIN musclegroups mg ON mg.groupId = emg.groupId
+       WHERE emg.exerciseId = ?
+       ORDER BY emg.exerciseMuscleGroupId`,
       [exerciseId],
     );
   const [equipmentRows] = await db
     .promise()
     .query(
-      "SELECT equipmentId FROM `exerciseequipment` WHERE exerciseId = ? ORDER BY exerciseId, equipmentId",
+      `SELECT ee.equipmentId, eq.equipmentName
+       FROM exerciseequipment ee
+       LEFT JOIN equipment eq ON eq.equipmentId = ee.equipmentId
+       WHERE ee.exerciseId = ?
+       ORDER BY ee.exerciseId, ee.equipmentId`,
       [exerciseId],
     );
   const [media] = await db
@@ -48,10 +56,24 @@ Exercises.getDetailsById = async (exerciseId) => {
       [exerciseId],
     );
 
+  const primaryMuscles = muscleGroups
+    .filter((m) => m.role === "PRIMARY")
+    .map((m) => m.groupName)
+    .join(", ");
+  const secondaryMuscles = muscleGroups
+    .filter((m) => m.role === "SECONDARY")
+    .map((m) => m.groupName)
+    .join(", ");
+  const equipmentNames = equipmentRows.map((e) => e.equipmentName).filter(Boolean).join(", ");
+
   return {
     ...exerciseRows[0],
     muscleGroups,
+    primaryMuscles: primaryMuscles || null,
+    secondaryMuscles: secondaryMuscles || null,
+    equipment: equipmentNames || null,
     equipmentIds: equipmentRows.map((item) => item.equipmentId),
+    equipmentList: equipmentRows,
     media,
   };
 };
