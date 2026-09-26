@@ -36,6 +36,8 @@ export type PlanExercise = {
   sets: number;
   reps: number;
   restTime: number;
+  primaryMuscles?: string | null;
+  equipment?: string | null;
   preview?: string | null;
   media?: { mediaUrl: string; mediaType: string }[];
 };
@@ -124,6 +126,11 @@ export type CustomPlan = {
 };
 export type BodyMetricItem = { metricId: number; height: number | string; weight: number | string; recordedAt: string };
 export type LibraryExercise = {
+  guide?: {
+    steps: string[];
+    mistakes: string[];
+    source?: { title: string; url: string };
+  } | null;
   exerciseId: number;
   name: string;
   description: string | null;

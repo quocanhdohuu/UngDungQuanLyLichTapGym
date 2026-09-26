@@ -27,7 +27,9 @@ export default function TemplateDetailScreen() {
         {!day.exercises.length && <Text style={ui.muted}>Chưa có bài tập</Text>}
       </View>)}
       <Button title="SỬ DỤNG LỊCH NÀY" disabled={!plan.days.some(day => day.exercises.length)} onPress={() => { action.setError(null); setConfirm(true); }} />
-      <Confirm visible={confirm} title="Áp dụng lịch tập?" message={plan.title + " sẽ trở thành lịch đang hoạt động. Lịch hiện tại sẽ ngừng áp dụng; lịch sử tập luyện được giữ lại."}
+      <Confirm visible={confirm} title="Áp dụng lịch mẫu?" confirmLabel="✓ Áp dụng lịch tập này"
+        message="Lịch mẫu sẽ thay thế lịch đang áp dụng. Tiến trình và lịch sử tập luyện trước đây được giữ lại."
+        details={<View style={[ui.card, { backgroundColor: "#252D28", borderRadius: 10 }]}><Text style={ui.heading}>{plan.title}</Text><Text style={ui.accent}>{levelLabel(plan.level)} • {plan.days.length} ngày / tuần • {plan.durationWeeks} tuần</Text></View>}
         busy={action.busy} error={action.error} onClose={() => setConfirm(false)} onConfirm={() => action.run(async () => {
           await userApi.applyPlan(plan.planId); setConfirm(false); router.replace("/plans");
         })} />

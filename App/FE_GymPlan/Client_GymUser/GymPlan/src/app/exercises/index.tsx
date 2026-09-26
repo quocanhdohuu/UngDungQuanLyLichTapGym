@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { DataState } from "@/components/common/data-state";
 import { SharedHeader } from "@/components/common/shared-header";
+import { categoriesFor, MuscleMap, muscleCategories, normalizeSearch } from "@/components/common/muscle-map";
 import { useApiData } from "@/hooks/use-api-data";
 import { LibraryExercise, userApi } from "@/services/user-api";
 import { SymbolView } from "expo-symbols";
@@ -49,20 +50,22 @@ function getPreviewImageUrl(exercise: LibraryExercise) {
 
   const normalized = candidate.trim();
   if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(normalized)) return normalized;
-  if (/\.(mp4|mov|webm|m3u8|avi)(\?.*)?$/i.test(normalized)) {
+  if (/^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\//i.test(normalized) && /\.(mp4|mov|webm)(\?.*)?$/i.test(normalized)) {
     return normalized.replace(/\.(mp4|mov|webm|m3u8|avi)(\?.*)?$/i, ".jpg");
   }
 
-  return normalized;
+  return null;
 }
 
 function ExerciseMediaPreview({ exercise }: { exercise: LibraryExercise }) {
   const imageUrl = getPreviewImageUrl(exercise);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  if (imageUrl) {
+  if (imageUrl && imageUrl !== failedUrl) {
     return (
       <Image
         source={{ uri: imageUrl }}
+        onError={() => setFailedUrl(imageUrl)}
         style={{ width: "100%", height: "100%" }}
       />
     );
@@ -133,31 +136,18 @@ export default function ExercisesScreen() {
   const [search, setSearch] = useState("");
   const state = useApiData(userApi.library);
   const exercises = state.data || [];
-  const groupsOf = (exercise: LibraryExercise) =>
-    (exercise.primaryMuscles || "")
-      .split(",")
-      .map((name) => name.trim())
-      .filter(Boolean);
-  const groupNames = Array.from(new Set(exercises.flatMap(groupsOf)));
-  const filters = ["Tất cả", ...groupNames];
-  const muscleGroups = groupNames.map((name) => [
-    "💪",
-    name,
-    `${exercises.filter((exercise) => groupsOf(exercise).includes(name)).length} bài`,
-  ]);
-  const normalize = (text: string) =>
-    text
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[đĐ]/g, "d")
-      .toLowerCase();
+  const groupsOf = (exercise: LibraryExercise): string[] => categoriesFor(exercise.primaryMuscles);
+  const filters = ["Tất cả", ...muscleCategories];
+  const muscleGroups = muscleCategories.map(name => ({
+    name, count: exercises.filter(exercise => groupsOf(exercise).includes(name)).length,
+  }));
   const visibleExercises = exercises.filter(
     (exercise) =>
       (activeFilter === "Tất cả" ||
         groupsOf(exercise).includes(activeFilter)) &&
-      normalize(
-        `${exercise.name} ${exercise.description || ""} ${exercise.primaryMuscles || ""} ${exercise.equipment || ""}`,
-      ).includes(normalize(search.trim())),
+      normalizeSearch(
+        `${exercise.name} ${exercise.description || ""} ${exercise.primaryMuscles || ""} ${groupsOf(exercise).join(" ")} ${exercise.equipment || ""}`,
+      ).includes(normalizeSearch(search.trim())),
   );
 
   return (
@@ -234,6 +224,9 @@ export default function ExercisesScreen() {
           {filters.map((filter) => (
             <Pressable
               key={filter}
+              accessibilityRole="button"
+              accessibilityLabel={"Lọc nhóm cơ " + filter}
+              accessibilityState={{ selected: activeFilter === filter }}
               onPress={() => setActiveFilter(filter)}
               style={[
                 styles.filterPill,
@@ -253,8 +246,9 @@ export default function ExercisesScreen() {
         </ScrollView>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 16 }}>
-          {muscleGroups.map(([icon, name, count]) => <Pressable key={name} onPress={() => setActiveFilter(name)} style={{ backgroundColor: colors.cardRaised, padding: 16, borderRadius: 12 }}>
-            <Text style={styles.sectionTitle}>{icon} {name}</Text><Text style={styles.description}>{count}</Text>
+          {muscleGroups.map(({ name, count }) => <Pressable key={name} accessibilityRole="button" accessibilityLabel={"Xem " + count + " bài nhóm " + name} onPress={() => setActiveFilter(name)} style={{ backgroundColor: colors.cardRaised, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: activeFilter === name ? colors.green : "transparent" }}>
+            <MuscleMap category={name} />
+            <Text style={styles.sectionTitle}>{name}</Text><Text style={styles.description}>{count} bài</Text>
           </Pressable>)}
         </ScrollView>
         <View style={[styles.sectionHeader, styles.exerciseHeader]}>

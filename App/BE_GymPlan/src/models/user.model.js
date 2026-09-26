@@ -125,7 +125,13 @@ const User = {
       });
     }
     const [prescription] = session.dayId ? await db.promise().query(
-      `SELECT ec.configId, ec.exerciseId, e.name AS exerciseName, ec.sets, ec.reps, ec.restTime
+      `SELECT ec.configId, ec.exerciseId, e.name AS exerciseName, ec.sets, ec.reps, ec.restTime,
+         (SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
+          FROM ExerciseMuscleGroups emg JOIN MuscleGroups mg ON mg.groupId = emg.groupId
+          WHERE emg.exerciseId = e.exerciseId AND emg.role = 'PRIMARY') AS primaryMuscles,
+         (SELECT GROUP_CONCAT(DISTINCT eq.equipmentName ORDER BY eq.equipmentName SEPARATOR ', ')
+          FROM ExerciseEquipment ee JOIN Equipment eq ON eq.equipmentId = ee.equipmentId
+          WHERE ee.exerciseId = e.exerciseId) AS equipment
        FROM ExerciseConfigs ec JOIN Exercises e ON e.exerciseId = ec.exerciseId
        WHERE ec.dayId = ? ORDER BY ec.\`order\``, [session.dayId],
     ) : [[]];

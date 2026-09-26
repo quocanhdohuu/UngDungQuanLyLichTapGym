@@ -1,10 +1,10 @@
 import { DataState } from "@/components/common/data-state";
-import { Button, Confirm, Field, Page, ui, useAction } from "@/components/common/flow-ui";
+import { Button, Confirm, Page, ui, useAction } from "@/components/common/flow-ui";
 import { useApiData } from "@/hooks/use-api-data";
 import { ExerciseSet, PlanExercise, PreviousPerformance, WorkoutDetail, formatNumber, userApi } from "@/services/user-api";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 const timeLabel = (seconds: number) => [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, "0")).join(":");
 function SetRow({ number, saved, previous, target, busy, onSave, onDelete }: {
@@ -20,17 +20,21 @@ function SetRow({ number, saved, previous, target, busy, onSave, onDelete }: {
   const count = Number(reps);
   const valid = !!weight.trim() && Number.isFinite(kg) && kg >= 0 && kg <= 9999.99 && !!reps.trim() && Number.isInteger(count) && count > 0 && count <= 10000;
   const unchanged = !!saved && kg === Number(saved.weight) && count === Number(saved.reps);
-  return <View style={ui.card}>
-    <View style={ui.row}><Text style={ui.accent}>HIỆP {number} {saved ? "✓" : ""}</Text><Text style={ui.muted}>Mục tiêu: {target} lần</Text></View>
-    <Text style={ui.muted}>Lần trước: {previous ? formatNumber(previous.weight) + " kg × " + previous.reps : "Chưa có dữ liệu"}</Text>
-    <View style={ui.row}>
-      <Field label="Khối lượng (kg)" accessibilityLabel={"Khối lượng hiệp " + number + " (kg)"} containerStyle={{ flex: 1, minWidth: 0 }} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" editable={!busy} />
-      <Field label="Số lần lặp" accessibilityLabel={"Số lần hiệp " + number} containerStyle={{ flex: 1, minWidth: 0 }} value={reps} onChangeText={setReps} keyboardType="number-pad" editable={!busy} />
+  return <View style={workoutStyle.set}>
+    <View style={workoutStyle.columns}>
+      <Text accessibilityLabel={"Hiệp " + number} style={[ui.accent, { width: 30, textAlign: "center" }]}>{number}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}><Text style={ui.text}>{target} lần</Text>
+        <Text style={workoutStyle.previous}>{previous ? formatNumber(previous.weight) + " × " + previous.reps : "Chưa có PREV"}</Text>
+      </View>
+      <TextInput style={workoutStyle.input} accessibilityLabel={"Khối lượng hiệp " + number + " (kg)"} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" editable={!busy} placeholder="kg" placeholderTextColor="#ABB5AA" />
+      <TextInput style={workoutStyle.input} accessibilityLabel={"Số lần hiệp " + number} value={reps} onChangeText={setReps} keyboardType="number-pad" editable={!busy} />
+      <Pressable accessibilityRole="button" accessibilityLabel={unchanged ? "✓ Đã lưu" : saved ? "Lưu thay đổi" : "Xác nhận hiệp"}
+        disabled={busy || !valid || unchanged} accessibilityState={{ disabled: busy || !valid || unchanged }} onPress={() => onSave(kg, count)}
+        style={[workoutStyle.tick, unchanged && { backgroundColor: "#8CFF2E" }, (busy || !valid) && { opacity: 0.4 }]}>
+        <Text style={{ color: unchanged ? "#10200C" : "#8CFF2E", fontSize: 20 }}>✓</Text>
+      </Pressable>
     </View>
-    <View style={ui.row}>
-      <Button title={unchanged ? "✓ Đã lưu" : saved ? "Lưu thay đổi" : "Xác nhận hiệp"} disabled={busy || !valid || unchanged} onPress={() => onSave(kg, count)} />
-      <Button title="Xóa hiệp" secondary disabled={busy} onPress={onDelete} />
-    </View>
+    <Pressable accessibilityRole="button" accessibilityLabel={"Xóa hiệp " + number} disabled={busy} onPress={onDelete} style={{ alignSelf: "flex-end", minHeight: 32, justifyContent: "center" }}><Text style={workoutStyle.previous}>Xóa hiệp</Text></Pressable>
   </View>;
 }
 
@@ -67,11 +71,18 @@ function ExercisePanel({ exercise, session, busy, error, run, reload, startRest 
   return <View style={{ gap: 12 }}>
     <View style={ui.card}>
       <Text style={ui.heading}>{exercise.exerciseName}</Text>
+      <Text style={ui.text}>Nhóm cơ: {exercise.primaryMuscles || "Chưa cập nhật"}</Text>
+      <Text style={ui.text}>Dụng cụ: {exercise.equipment || "Chưa cập nhật"}</Text>
+      <Text style={ui.muted}>Mục tiêu RPE: Chưa thiết lập</Text>
       <Text style={ui.muted}>{exercise.sets} hiệp × {exercise.reps} lần • Nghỉ {exercise.restTime}s</Text>
       <Button title="Xem hướng dẫn động tác" secondary disabled={busy} onPress={() => router.push({ pathname: "/exercises/[id]", params: { id: exercise.exerciseId } })} />
       {performed?.isCompleted && <Text style={ui.accent}>✓ Đã hoàn thành bài</Text>}
     </View>
     <DataState {...previous} retry={previous.refresh} />
+    <View style={workoutStyle.columns}>
+      <Text style={[workoutStyle.label, { width: 30 }]}>HIỆP</Text><Text style={[workoutStyle.label, { flex: 1 }]}>MỤC TIÊU / PREV</Text>
+      <Text style={[workoutStyle.label, { width: 56 }]}>KG</Text><Text style={[workoutStyle.label, { width: 56 }]}>REPS</Text><Text style={[workoutStyle.label, { width: 40 }]}>LƯU</Text>
+    </View>
     {!previous.loading && numbers.map(number => <SetRow key={number} number={number}
       saved={performed?.sets.find(set => set.setNumber === number)} previous={previous.data?.find(set => set.setNumber === number)}
       target={exercise.reps} busy={busy} onSave={(weight, reps) => save(number, weight, reps)} onDelete={() => setRemoved(number)} />)}
@@ -108,14 +119,15 @@ export default function WorkoutScreen() {
     {!!action.error && <Text accessibilityRole="alert" style={ui.error}>{action.error}</Text>}
     {session?.status === "IN_PROGRESS" && <>
       <View style={ui.card}><Text style={ui.accent}>BÀI {prescription.length ? index + 1 : 0}/{prescription.length} • {session.exercises.filter(item => item.isCompleted).length} hoàn thành</Text>
-        <Text style={ui.title}>{timeLabel(elapsed)}</Text><Text style={ui.text}>{formatNumber(volume / 1000)} TẤN</Text>
+        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: prescription.length, now: session.exercises.filter(item => item.isCompleted).length }} style={{ height: 5, borderRadius: 3, backgroundColor: "#303A33", overflow: "hidden" }}><View style={{ height: 5, backgroundColor: "#8CFF2E", width: `${prescription.length ? Math.min(100, session.exercises.filter(item => item.isCompleted).length / prescription.length * 100) : 0}%` }} /></View>
+        <View style={[ui.row, { justifyContent: "space-between" }]}><View><Text style={ui.muted}>THỜI GIAN TẬP</Text><Text style={[ui.title, { color: "#8CFF2E" }]}>{timeLabel(elapsed)}</Text></View><View><Text style={ui.muted}>KHỐI LƯỢNG</Text><Text style={ui.heading}>{formatNumber(volume / 1000)} TẤN</Text></View></View>
       </View>
-      {exercise && <ExercisePanel key={session.workoutSessionId + ":" + exercise.exerciseId} exercise={exercise} session={session} busy={busy} error={action.error} run={action.run} reload={state.refresh} startRest={seconds => { setNow(Date.now()); setRestUntil(Date.now() + seconds * 1000); }} />}
+      {exercise && <ExercisePanel key={session.workoutSessionId + ":" + exercise.exerciseId} exercise={exercise} session={session} busy={busy} error={action.error} run={action.run} reload={state.refresh} startRest={seconds => { const started = Date.now(); setNow(started); setRestUntil(started + seconds * 1000); }} />}
       <View style={ui.row}>
         <Button title="‹ Bài trước" secondary disabled={busy || index <= 0} onPress={() => setIndex(value => value - 1)} />
         <Button title="Bài tiếp ›" secondary disabled={busy || index >= prescription.length - 1} onPress={() => setIndex(value => value + 1)} />
       </View>
-      <Button title="KẾT THÚC BUỔI TẬP" disabled={busy || !hasSets} onPress={() => { action.setError(null); setConfirm("complete"); }} />
+      <Button title="KẾT THÚC BUỔI TẬP" danger disabled={busy || !hasSets} onPress={() => { action.setError(null); setConfirm("complete"); }} />
       <Button title="Hủy buổi tập" secondary disabled={busy} onPress={() => { action.setError(null); setConfirm("cancel"); }} />
       <Text style={ui.muted}>Nhấn xác nhận từng hiệp để lưu. Bạn có thể rời màn hình và tiếp tục các hiệp đã lưu từ Trang chủ.</Text>
       <Confirm visible={confirm != null} title={confirm === "complete" ? "Kết thúc buổi tập?" : "Hủy buổi tập?"}
@@ -130,3 +142,12 @@ export default function WorkoutScreen() {
     {session && session.status !== "IN_PROGRESS" && <Button title="Xem kết quả buổi tập" onPress={() => router.replace({ pathname: "/history/[id]", params: { id: session.workoutSessionId } })} />}
   </Page>;
 }
+
+const workoutStyle = StyleSheet.create({
+  columns: { flexDirection: "row", alignItems: "center", gap: 6 },
+  set: { backgroundColor: "#1B1F20", borderBottomWidth: 1, borderColor: "#303A33", paddingTop: 8, paddingHorizontal: 2 },
+  input: { width: 56, minHeight: 44, paddingHorizontal: 4, textAlign: "center", color: "#EEF0ED", backgroundColor: "#252D28", borderRadius: 8, fontSize: 14 },
+  tick: { width: 40, minHeight: 44, borderRadius: 22, backgroundColor: "#283129", alignItems: "center", justifyContent: "center" },
+  label: { color: "#ABB5AA", fontSize: 9, fontWeight: "700", textAlign: "center" },
+  previous: { color: "#ABB5AA", fontSize: 10, lineHeight: 16 },
+});

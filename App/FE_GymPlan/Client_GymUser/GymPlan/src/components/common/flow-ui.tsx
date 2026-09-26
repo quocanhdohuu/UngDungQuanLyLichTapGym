@@ -22,10 +22,10 @@ export const ui = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,.75)", justifyContent: "center", padding: 24 },
 });
 
-export function Button({ title, onPress, disabled, secondary }: { title: string; onPress: () => void; disabled?: boolean; secondary?: boolean }) {
+export function Button({ title, onPress, disabled, secondary, danger }: { title: string; onPress: () => void; disabled?: boolean; secondary?: boolean; danger?: boolean }) {
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}
-    style={[ui.button, secondary && ui.secondary, disabled && { opacity: 0.45 }]}>
-    <Text style={[ui.buttonText, secondary && { color: palette.text }]}>{title}</Text>
+    style={[ui.button, secondary && ui.secondary, danger && { backgroundColor: "#D52D36" }, disabled && { opacity: 0.45 }]}>
+    <Text style={[ui.buttonText, (secondary || danger) && { color: palette.text }]}>{title}</Text>
   </Pressable>;
 }
 export function Field({ label, containerStyle, ...props }: TextInputProps & { label: string; containerStyle?: StyleProp<ViewStyle> }) {
@@ -38,11 +38,12 @@ export function Page({ title, children, onBack, footer }: { title: string; child
     <Text style={ui.title}>{title}</Text>{children}
   </ScrollView>{footer}</SafeAreaView>;
 }
-export function Confirm({ visible, title, message, busy, error, onConfirm, onClose }: { visible: boolean; title: string; message: string; busy: boolean; error?: string | null; onConfirm: () => void; onClose: () => void }) {
+export function Confirm({ visible, title, message, busy, error, onConfirm, onClose, details, confirmLabel = "Xác nhận" }: { visible: boolean; title: string; message: string; busy: boolean; error?: string | null; onConfirm: () => void; onClose: () => void; details?: ReactNode; confirmLabel?: string }) {
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={() => { if (!busy) onClose(); }}>
-    <View style={ui.overlay}><View style={ui.card}><Text style={ui.heading}>{title}</Text><Text style={ui.text}>{message}</Text>
+    <View style={ui.overlay}><View style={[ui.card, { width: "100%", maxWidth: 420, alignSelf: "center" }]}><Text style={ui.heading}>{title}</Text><Text style={ui.text}>{message}</Text>
+      {details}
       {!!error && <Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
-      <Button title={busy ? "Đang xử lý…" : "Xác nhận"} onPress={onConfirm} disabled={busy} />
+      <Button title={busy ? "Đang xử lý…" : confirmLabel} onPress={onConfirm} disabled={busy} />
       <Button title="Quay lại" onPress={onClose} disabled={busy} secondary />
     </View></View>
   </Modal>;

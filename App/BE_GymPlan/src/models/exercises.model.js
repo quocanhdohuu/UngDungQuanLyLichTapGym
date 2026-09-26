@@ -1,4 +1,5 @@
 const db = require("../common/db");
+const { getExerciseGuide } = require("../common/exercise-guide");
 
 const Exercises = (exercises) => {
   this.exerciseId = exercises.exerciseId;
@@ -68,6 +69,7 @@ Exercises.getDetailsById = async (exerciseId) => {
 
   return {
     ...exerciseRows[0],
+    guide: getExerciseGuide(exerciseRows[0]),
     muscleGroups,
     primaryMuscles: primaryMuscles || null,
     secondaryMuscles: secondaryMuscles || null,
