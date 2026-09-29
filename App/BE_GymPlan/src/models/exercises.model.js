@@ -161,4 +161,11 @@ Exercises.delete = (exerciseId, callback) => {
   );
 };
 
+Exercises.getAlternatives = async (exerciseId) => {
+  const [rows] = await db
+    .promise()
+    .query("CALL sp_GetExerciseAlternatives(?)", [exerciseId]);
+  return rows[0] || [];
+};
+
 module.exports = Exercises;

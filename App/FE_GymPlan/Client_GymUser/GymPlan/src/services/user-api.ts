@@ -93,6 +93,18 @@ export type WorkoutHistory = {
   totalExercises: number;
   totalVolume: number | string;
 };
+export type ExerciseAlternative = {
+  alternativeId: number;
+  originalExerciseId: number;
+  alternativeExerciseId: number;
+  exerciseName: string;
+  description: string | null;
+  difficulty: "EASY" | "MEDIUM" | "HARD" | null;
+  primaryMuscles: string | null;
+  equipment: string | null;
+  priority: number;
+  note: string | null;
+};
 export type WorkoutDetail = {
   workoutSessionId: number;
   dayId: number | null;
@@ -106,8 +118,13 @@ export type WorkoutDetail = {
   exercises: {
     performedExerciseId: number;
     exerciseId: number;
-    isCompleted: boolean;
+    originalExerciseId?: number | null;
+    isSubstituted?: boolean;
     exerciseName: string;
+    originalExerciseName?: string | null;
+    primaryMuscles?: string | null;
+    equipment?: string | null;
+    isCompleted: boolean;
     sets: {
       setId: number;
       setNumber: number;
@@ -195,12 +212,20 @@ export const userApi = {
     apiRequest<WorkoutDetail | null>(userPath("active-session"), { signal }),
   startSession: (dayId?: number) =>
     write<WorkoutSession>("workout-sessions", "POST", { dayId }),
-  addExerciseToSession: (id: number, exerciseId: number) =>
-    write<{ performedExerciseId: number }>(
-      `workout-sessions/${id}/exercises`,
-      "POST",
-      { exerciseId },
-    ),
+  addExerciseToSession: (
+    id: number,
+    exerciseId: number,
+    originalExerciseId?: number | null,
+  ) =>
+    write<{
+      performedExerciseId: number;
+      exerciseId: number;
+      originalExerciseId?: number | null;
+      isSubstituted?: boolean;
+    }>(`workout-sessions/${id}/exercises`, "POST", {
+      exerciseId,
+      originalExerciseId: originalExerciseId ?? null,
+    }),
   addSet: (
     id: number,
     setNumber: number,
@@ -225,6 +250,11 @@ export const userApi = {
   getPreviousPerformance: (id: number, signal?: AbortSignal) =>
     apiRequest<PreviousPerformance[]>(
       userPath(`exercises/${id}/previous-performance`),
+      { signal },
+    ),
+  getAlternatives: (exerciseId: number, signal?: AbortSignal) =>
+    apiRequest<ExerciseAlternative[]>(
+      userPath(`exercises/${exerciseId}/alternatives`),
       { signal },
     ),
   bodyMetrics: (signal?: AbortSignal) =>

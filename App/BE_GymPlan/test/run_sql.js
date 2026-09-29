@@ -7,7 +7,7 @@ async function run() {
   const sql = fs.readFileSync(path.join(__dirname, "../sql/sp_user_workout_flow.sql"), "utf8");
   const procedures = [...sql.matchAll(/CREATE\s+PROCEDURE\s+(\w+)[\s\S]*?END\s*\$\$/gi)]
     .map(match => ({ name: match[1], sql: match[0].replace(/\$\$$/, "").trim() }));
-  if (procedures.length !== 12) throw new Error("Expected exactly 12 workout procedures");
+  if (procedures.length !== 13) throw new Error("Expected exactly 13 workout procedures");
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 3306),
@@ -34,7 +34,7 @@ async function run() {
       await connection.query(procedure.sql);
       console.log("Installed " + procedure.name);
     }
-    console.log("Installed all 12 procedures; tables and existing records unchanged.");
+    console.log("Installed all 13 procedures; tables and existing records unchanged.");
   } catch (error) {
     for (const name of changed.reverse()) {
       await connection.query("DROP PROCEDURE IF EXISTS " + name);

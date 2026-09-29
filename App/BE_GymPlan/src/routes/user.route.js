@@ -18,6 +18,7 @@ router.get("/:profileId/workout-history", User.getWorkoutHistory);
 router.get("/:profileId/workout-history/:workoutSessionId", User.getWorkoutDetail);
 router.get("/:profileId/body-metrics", User.getBodyMetrics);
 router.get("/:profileId/exercises/:exerciseId/previous-performance", User.getPreviousPerformance);
+router.get("/:profileId/exercises/:exerciseId/alternatives", User.getExerciseAlternatives);
 
 router.get("/:profileId/active-session", User.getActiveSession);
 router.post("/:profileId/plans", User.createCustomPlan);

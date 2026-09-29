@@ -388,6 +388,48 @@ CREATE TABLE BodyMetrics (
 );
 
 -- =====================================================
+-- 17. ExerciseAlternatives
+-- =====================================================
+CREATE TABLE ExerciseAlternatives (
+    alternativeId INT AUTO_INCREMENT PRIMARY KEY,
+
+    exerciseId INT NOT NULL,
+    alternativeExerciseId INT NOT NULL,
+
+    priority TINYINT NOT NULL DEFAULT 1,
+    note VARCHAR(255),
+
+    CONSTRAINT fk_alternative_source
+        FOREIGN KEY (exerciseId)
+        REFERENCES Exercises(exerciseId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_alternative_target
+        FOREIGN KEY (alternativeExerciseId)
+        REFERENCES Exercises(exerciseId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    CONSTRAINT uq_exercise_alternative
+        UNIQUE (exerciseId, alternativeExerciseId),
+
+    CONSTRAINT chk_alternative_priority
+        CHECK (priority > 0)
+);
+
+ALTER TABLE PerformedExercises
+ADD COLUMN originalExerciseId INT NULL AFTER exerciseId,
+ADD COLUMN isSubstituted BOOLEAN NOT NULL DEFAULT FALSE AFTER originalExerciseId;
+
+ALTER TABLE PerformedExercises
+ADD CONSTRAINT fk_performed_original_exercise
+FOREIGN KEY (originalExerciseId)
+REFERENCES Exercises(exerciseId)
+ON DELETE SET NULL
+ON UPDATE CASCADE;
+
+-- =====================================================
 -- 1. Số tuần của một chương trình
 -- Ví dụ PPL chạy trong 8 tuần
 -- =====================================================

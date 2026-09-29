@@ -199,6 +199,21 @@ const ExercisesController = {
       });
     });
   },
+
+  getAlternatives: async (req, res) => {
+    try {
+      const exerciseId = Number(req.params.exerciseId);
+      const data = await Exercises.getAlternatives(exerciseId);
+      return res.json({
+        data,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: "Lấy danh sách bài tập thay thế thất bại",
+        error: error.message,
+      });
+    }
+  },
 };
 
 module.exports = ExercisesController;

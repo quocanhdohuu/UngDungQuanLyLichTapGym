@@ -97,10 +97,18 @@ const User = {
     if (!sessions.length) return null;
     const session = sessions[0];
     const [rows] = await db.promise().query(
-      `SELECT pe.performedExerciseId, pe.exerciseId, pe.isCompleted, e.name AS exerciseName,
+      `SELECT pe.performedExerciseId, pe.exerciseId, pe.originalExerciseId, pe.isSubstituted, pe.isCompleted,
+              e.name AS exerciseName, orig.name AS originalExerciseName,
+              (SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
+               FROM ExerciseMuscleGroups emg JOIN MuscleGroups mg ON mg.groupId = emg.groupId
+               WHERE emg.exerciseId = e.exerciseId AND emg.role = 'PRIMARY') AS primaryMuscles,
+              (SELECT GROUP_CONCAT(DISTINCT eq.equipmentName ORDER BY eq.equipmentName SEPARATOR ', ')
+               FROM ExerciseEquipment ee JOIN Equipment eq ON eq.equipmentId = ee.equipmentId
+               WHERE ee.exerciseId = e.exerciseId) AS equipment,
               es.setId, es.setNumber, es.weight, es.reps, es.preValue
        FROM PerformedExercises pe
        JOIN Exercises e ON e.exerciseId = pe.exerciseId
+       LEFT JOIN Exercises orig ON orig.exerciseId = pe.originalExerciseId
        LEFT JOIN ExerciseSets es ON es.performedExerciseId = pe.performedExerciseId
        WHERE pe.workoutSessionId = ?
        ORDER BY pe.performedExerciseId, es.setNumber`, [workoutSessionId],
@@ -111,8 +119,13 @@ const User = {
         exercises.set(row.performedExerciseId, {
           performedExerciseId: row.performedExerciseId,
           exerciseId: row.exerciseId,
-          isCompleted: Boolean(row.isCompleted),
+          originalExerciseId: row.originalExerciseId,
+          isSubstituted: Boolean(row.isSubstituted),
           exerciseName: row.exerciseName,
+          originalExerciseName: row.originalExerciseName,
+          primaryMuscles: row.primaryMuscles,
+          equipment: row.equipment,
+          isCompleted: Boolean(row.isCompleted),
           sets: [],
         });
       }
@@ -149,6 +162,9 @@ const User = {
 
   getPreviousPerformance: async (profileId, exerciseId) =>
     (await call("CALL sp_GetPreviousExercisePerformance(?, ?)", [profileId, exerciseId]))[0] || [],
+
+  getExerciseAlternatives: async (exerciseId) =>
+    (await call("CALL sp_GetExerciseAlternatives(?)", [exerciseId]))[0] || [],
 
   changePassword: async (accountId, oldPassword, newPassword) =>
     (await call("CALL sp_ChangePassword(?, ?, ?)", [accountId, oldPassword, newPassword]))[0]?.[0],

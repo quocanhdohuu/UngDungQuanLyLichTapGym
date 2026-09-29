@@ -5,6 +5,7 @@ const ExercisesController = require("../controllers/exercises.controller");
 
 router.get("/summary", ExercisesController.getAllWithSummary);
 router.get("/", ExercisesController.getAll);
+router.get("/:exerciseId/alternatives", ExercisesController.getAlternatives);
 router.get("/:exerciseId", ExercisesController.getById);
 router.post("/", ExercisesController.create);
 router.put("/:exerciseId", ExercisesController.update);

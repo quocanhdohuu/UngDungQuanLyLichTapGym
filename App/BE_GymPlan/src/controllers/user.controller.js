@@ -118,7 +118,14 @@ module.exports = {
   }),
   addPerformedExercise: handle((req) => {
     if (!positiveId(req.body.exerciseId)) fail("exerciseId không hợp lệ");
-    return User.addPerformedExercise(Number(req.params.profileId), Number(req.params.workoutSessionId), Number(req.body.exerciseId));
+    const originalExerciseId = req.body.originalExerciseId != null ? Number(req.body.originalExerciseId) : null;
+    if (originalExerciseId != null && !positiveId(originalExerciseId)) fail("originalExerciseId không hợp lệ");
+    return User.addPerformedExercise(
+      Number(req.params.profileId),
+      Number(req.params.workoutSessionId),
+      Number(req.body.exerciseId),
+      originalExerciseId,
+    );
   }),
   addExerciseSet: handle((req) => {
     const { setNumber, weight, reps, preValue = null } = req.body;
@@ -139,6 +146,10 @@ module.exports = {
   getPreviousPerformance: handle((req) =>
     User.getPreviousPerformance(Number(req.params.profileId), Number(req.params.exerciseId)),
   ),
+  getExerciseAlternatives: handle((req) => {
+    if (!positiveId(req.params.exerciseId)) fail("exerciseId không hợp lệ");
+    return User.getExerciseAlternatives(Number(req.params.exerciseId));
+  }),
   changePassword: handle(async (req) => {
     const { oldPassword, newPassword, confirmPassword } = req.body;
     if (typeof oldPassword !== "string" || typeof newPassword !== "string" || !oldPassword || !newPassword) fail("Vui lòng nhập mật khẩu cũ và mật khẩu mới");
