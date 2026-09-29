@@ -4,6 +4,7 @@ import {
   AdminFilterSelect,
 } from "../../components/admin/AdminControls";
 import AdminPageHeader from "../../components/admin/AdminPageHeader";
+import AdminPagination from "../../components/admin/AdminPagination";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 5;
@@ -750,38 +751,11 @@ const ExercisesPage = () => {
               Hiển thị {shownStart} - {shownEnd} trên {filteredExercises.length}{" "}
               bài tập
             </span>
-            <div>
-              <button
-                type="button"
-                disabled={pageForDisplay === 1}
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              >
-                Trang trước
-              </button>
-
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    className={pageNumber === pageForDisplay ? "active" : ""}
-                    onClick={() => setCurrentPage(pageNumber)}
-                  >
-                    {pageNumber}
-                  </button>
-                ),
-              )}
-
-              <button
-                type="button"
-                disabled={pageForDisplay === totalPages}
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-              >
-                Sau
-              </button>
-            </div>
+            <AdminPagination
+              page={pageForDisplay}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

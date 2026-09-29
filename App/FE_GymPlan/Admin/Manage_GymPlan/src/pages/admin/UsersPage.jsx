@@ -4,6 +4,7 @@ import {
   AdminFilterSelect,
 } from "../../components/admin/AdminControls";
 import AdminPageHeader from "../../components/admin/AdminPageHeader";
+import AdminPagination from "../../components/admin/AdminPagination";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -463,35 +464,11 @@ function UsersPage() {
             {Math.min(startIndex + PAGE_SIZE, filteredUsers.length)} trên{" "}
             {filteredUsers.length} người dùng
           </span>
-          <div className="pagination">
-            <button
-              className="page-arrow"
-              disabled={page === 1}
-              onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
-            >
-              ‹
-            </button>
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-              (number) => (
-                <button
-                  key={number}
-                  className={`page-number ${number === page ? "active" : ""}`}
-                  onClick={() => setCurrentPage(number)}
-                >
-                  {number}
-                </button>
-              ),
-            )}
-            <button
-              className="page-arrow"
-              disabled={page === totalPages}
-              onClick={() =>
-                setCurrentPage((value) => Math.min(totalPages, value + 1))
-              }
-            >
-              ›
-            </button>
-          </div>
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
       {notice && <div className="exercise-notice">{notice}</div>}

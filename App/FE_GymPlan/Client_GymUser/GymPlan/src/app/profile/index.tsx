@@ -2,7 +2,13 @@ import { DataState } from "@/components/common/data-state";
 import { ChangePassword } from "@/components/common/change-password";
 import { useApiData } from "@/hooks/use-api-data";
 import { apiRequest } from "@/services/api";
-import { formatDate, levelLabel, Profile, ProfileUpdate, userApi } from "@/services/user-api";
+import {
+  formatDate,
+  levelLabel,
+  Profile,
+  ProfileUpdate,
+  userApi,
+} from "@/services/user-api";
 import { clearAuthSession, getAuthSession, initials } from "@/auth-session";
 import { SharedHeader } from "@/components/common/shared-header";
 import { router } from "expo-router";
@@ -32,20 +38,48 @@ const colors = {
   red: "#FF9C9C",
 };
 
-function Stepper({ value, unit, onChange }: { value: string; unit: string; onChange: (value: string) => void }) {
+function Stepper({
+  value,
+  unit,
+  onChange,
+}: {
+  value: string;
+  unit: string;
+  onChange: (value: string) => void;
+}) {
   const step = (delta: number) => {
     if (!value.trim() || !Number.isFinite(Number(value))) return;
-    onChange(String(Math.min(999.99, Math.max(0.1, Math.round((Number(value) + delta) * 100) / 100))));
+    onChange(
+      String(
+        Math.min(
+          999.99,
+          Math.max(0.1, Math.round((Number(value) + delta) * 100) / 100),
+        ),
+      ),
+    );
   };
   return (
     <View style={styles.stepper}>
-      <Pressable style={styles.stepButton} onPress={() => step(-1)}><Text style={styles.stepText}>−</Text></Pressable>
-      <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
-        <TextInput accessibilityLabel={unit === "cm" ? "Chiều cao" : "Cân nặng"} value={value} onChangeText={onChange}
-          keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.muted} style={styles.stepValue} />
+      <Pressable style={styles.stepButton} onPress={() => step(-1)}>
+        <Text style={styles.stepText}>−</Text>
+      </Pressable>
+      <View
+        style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}
+      >
+        <TextInput
+          accessibilityLabel={unit === "cm" ? "Chiều cao" : "Cân nặng"}
+          value={value}
+          onChangeText={onChange}
+          keyboardType="decimal-pad"
+          placeholder="—"
+          placeholderTextColor={colors.muted}
+          style={styles.stepValue}
+        />
         <Text style={[styles.stepValue, styles.stepUnit]}> {unit}</Text>
       </View>
-      <Pressable style={styles.stepButton} onPress={() => step(1)}><Text style={styles.stepText}>＋</Text></Pressable>
+      <Pressable style={styles.stepButton} onPress={() => step(1)}>
+        <Text style={styles.stepText}>＋</Text>
+      </Pressable>
     </View>
   );
 }
@@ -159,30 +193,43 @@ export default function ProfileScreen() {
     setWeight(profile.weight == null ? "" : String(profile.weight));
     setLevel(levelLabel(profile.level));
     setGoal(profile.goal || "");
-    setFrequency(profile.sessionsPerWeek == null ? "" : `${profile.sessionsPerWeek} buổi`);
+    setFrequency(
+      profile.sessionsPerWeek == null ? "" : `${profile.sessionsPerWeek} buổi`,
+    );
   }, [profile]);
 
   const save = async () => {
     if (saving || !profile) return;
-    setSaving(true); setSaved(false); setSaveError(null);
+    setSaving(true);
+    setSaved(false);
+    setSaveError(null);
     try {
       const metric = (value: string) => {
         if (!value.trim()) return null;
         const result = Number(value.replace(",", "."));
-        if (!Number.isFinite(result) || result <= 0 || result > 999.99) throw new Error("Chiều cao/cân nặng không hợp lệ.");
+        if (!Number.isFinite(result) || result <= 0 || result > 999.99)
+          throw new Error("Chiều cao/cân nặng không hợp lệ.");
         return result;
       };
       if (!fullName.trim()) throw new Error("Họ tên không được để trống.");
       await userApi.updateProfile({
-        fullName: fullName.trim(), gender, level: level.toUpperCase() as ProfileUpdate["level"],
-        goal: goal || null, sessionsPerWeek: frequency ? Number.parseInt(frequency, 10) : null,
-        height: metric(height), weight: metric(weight),
+        fullName: fullName.trim(),
+        gender,
+        level: level.toUpperCase() as ProfileUpdate["level"],
+        goal: goal || null,
+        sessionsPerWeek: frequency ? Number.parseInt(frequency, 10) : null,
+        height: metric(height),
+        weight: metric(weight),
       });
       await state.refresh();
       setSaved(true);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Không thể lưu hồ sơ.");
-    } finally { setSaving(false); }
+      setSaveError(
+        error instanceof Error ? error.message : "Không thể lưu hồ sơ.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const logout = async () => {
@@ -193,7 +240,11 @@ export default function ProfileScreen() {
       const session = getAuthSession();
       if (session) {
         await apiRequest("/auth/logout", {
-          method: "POST", body: JSON.stringify({ accountId: session.accountId, loginSessionId: session.loginSessionId }),
+          method: "POST",
+          body: JSON.stringify({
+            accountId: session.accountId,
+            loginSessionId: session.loginSessionId,
+          }),
         });
       }
     } catch {
@@ -208,7 +259,14 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
-        refreshControl={<RefreshControl refreshing={state.loading} onRefresh={state.refresh} enabled={!saving} tintColor={colors.green} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={state.loading}
+            onRefresh={state.refresh}
+            enabled={!saving}
+            tintColor={colors.green}
+          />
+        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
@@ -220,77 +278,137 @@ export default function ProfileScreen() {
 
         <DataState {...state} retry={state.refresh} />
         <DataState loading={false} error={saveError} retry={save} />
-        {saved && <Text style={styles.updated}>Đã lưu thay đổi{state.error ? "; vui lòng thử tải lại hồ sơ" : ""}.</Text>}
-        {profile && <View pointerEvents={saving ? "none" : "auto"}>
-          <View style={styles.profileCard}>
-            <View style={styles.largeAvatar}>
-              <Text style={styles.largeAvatarText}>{initials(profile.fullName)}</Text>
-              <View style={styles.camera}>
-                <Text style={styles.cameraText}>▣</Text>
+        {saved && (
+          <Text style={styles.updated}>
+            Đã lưu thay đổi{state.error ? "; vui lòng thử tải lại hồ sơ" : ""}.
+          </Text>
+        )}
+        {profile && (
+          <View pointerEvents={saving ? "none" : "auto"}>
+            <View style={styles.profileCard}>
+              <View style={styles.largeAvatar}>
+                <Text style={styles.largeAvatarText}>
+                  {initials(profile.fullName)}
+                </Text>
+                <View style={styles.camera}>
+                  <Text style={styles.cameraText}>▣</Text>
+                </View>
+              </View>
+              <View style={styles.profileCopy}>
+                <View style={styles.nameRow}>
+                  <TextInput
+                    accessibilityLabel="Họ tên"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    maxLength={100}
+                    style={styles.profileName}
+                  />
+                </View>
+                <Text style={styles.email}>{profile.email}</Text>
+                <Pressable
+                  accessibilityLabel="Thay đổi giới tính"
+                  onPress={() =>
+                    setGender(
+                      gender === "MALE"
+                        ? "FEMALE"
+                        : gender === "FEMALE"
+                          ? "OTHER"
+                          : "MALE",
+                    )
+                  }
+                >
+                  <Text style={styles.proBadge}>
+                    {gender === "MALE"
+                      ? "Nam"
+                      : gender === "FEMALE"
+                        ? "Nữ"
+                        : gender === "OTHER"
+                          ? "Khác"
+                          : "Chưa có giới tính"}
+                  </Text>
+                </Pressable>
               </View>
             </View>
-            <View style={styles.profileCopy}>
-              <View style={styles.nameRow}>
-                <TextInput accessibilityLabel="Họ tên" value={fullName} onChangeText={setFullName} maxLength={100} style={styles.profileName} />
-                <Text style={styles.vip}>{levelLabel(profile.level)}</Text>
+
+            <View style={styles.bodyCard}>
+              <View style={styles.cardTitleRow}>
+                <View style={styles.cardTitleGroup}>
+                  <Text style={styles.cardTitleIcon}>▤</Text>
+                  <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
+                  <Text style={styles.updated}>
+                    {profile.bodyMetricUpdatedAt
+                      ? formatDate(profile.bodyMetricUpdatedAt)
+                      : "Chưa có chỉ số"}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.email}>{profile.email}</Text>
-              <Pressable accessibilityLabel="Thay đổi giới tính" onPress={() => setGender(gender === "MALE" ? "FEMALE" : gender === "FEMALE" ? "OTHER" : "MALE")}>
-                <Text style={styles.proBadge}>{gender === "MALE" ? "Nam" : gender === "FEMALE" ? "Nữ" : gender === "OTHER" ? "Khác" : "Chưa có giới tính"}</Text>
-              </Pressable>
+              <View style={styles.measureRow}>
+                <View style={styles.measure}>
+                  <Text style={styles.measureLabel}>Chiều cao</Text>
+                  <Stepper value={height} unit="cm" onChange={setHeight} />
+                </View>
+                <View style={styles.measure}>
+                  <Text style={styles.measureLabel}>Cân nặng</Text>
+                  <Stepper value={weight} unit="kg" onChange={setWeight} />
+                </View>
+              </View>
+              <OptionRow
+                title="TRÌNH ĐỘ LUYỆN TẬP"
+                options={["Beginner", "Intermediate", "Advanced"]}
+                selected={level}
+                onSelect={setLevel}
+              />
+              <OptionRow
+                title="MỤC TIÊU CHÍNH"
+                options={Array.from(
+                  new Set([
+                    "Tăng cơ",
+                    "Giảm mỡ",
+                    "Sức bền",
+                    ...(goal ? [goal] : []),
+                  ]),
+                )}
+                selected={goal}
+                onSelect={setGoal}
+              />
+              <OptionRow
+                title="TẦN SUẤT TẬP / TUẦN"
+                options={Array.from(
+                  new Set([
+                    "3 buổi",
+                    "4 buổi",
+                    "5 buổi",
+                    "6 buổi",
+                    ...(frequency ? [frequency] : []),
+                  ]),
+                )}
+                selected={frequency}
+                onSelect={setFrequency}
+              />
             </View>
+
+            <Pressable
+              style={styles.saveButton}
+              onPress={save}
+              disabled={saving || state.loading}
+            >
+              <Text style={styles.saveText}>
+                {saving ? "ĐANG LƯU..." : "✓ LƯU THAY ĐỔI"}
+              </Text>
+            </Pressable>
           </View>
-
-          <View style={styles.bodyCard}>
-            <View style={styles.cardTitleRow}>
-              <View style={styles.cardTitleGroup}>
-                <Text style={styles.cardTitleIcon}>▤</Text>
-                <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
-              </View>
-              <Text style={styles.updated}>{profile.bodyMetricUpdatedAt ? formatDate(profile.bodyMetricUpdatedAt) : "Chưa có chỉ số"}</Text>
-            </View>
-            <View style={styles.measureRow}>
-              <View style={styles.measure}>
-                <Text style={styles.measureLabel}>Chiều cao</Text>
-                <Stepper value={height} unit="cm" onChange={setHeight} />
-              </View>
-              <View style={styles.measure}>
-                <Text style={styles.measureLabel}>Cân nặng</Text>
-                <Stepper value={weight} unit="kg" onChange={setWeight} />
-              </View>
-            </View>
-            <OptionRow
-              title="TRÌNH ĐỘ LUYỆN TẬP"
-              options={["Beginner", "Intermediate", "Advanced"]}
-              selected={level}
-              onSelect={setLevel}
-            />
-            <OptionRow
-              title="MỤC TIÊU CHÍNH"
-              options={Array.from(new Set(["Tăng cơ", "Giảm mỡ", "Sức bền", ...(goal ? [goal] : [])]))}
-              selected={goal}
-              onSelect={setGoal}
-            />
-            <OptionRow
-              title="TẦN SUẤT TẬP / TUẦN"
-              options={Array.from(new Set(["3 buổi", "4 buổi", "5 buổi", "6 buổi", ...(frequency ? [frequency] : [])]))}
-              selected={frequency}
-              onSelect={setFrequency}
-            />
-          </View>
-
-          <Pressable style={styles.saveButton} onPress={save} disabled={saving || state.loading}>
-            <Text style={styles.saveText}>{saving ? "ĐANG LƯU..." : "✓ LƯU THAY ĐỔI"}</Text>
-          </Pressable>
-
-        </View>}
+        )}
 
         <View style={styles.accountCard}>
           <View style={styles.accountHeader}>
             <Text style={styles.accountHeaderIcon}>☷</Text>
             <Text style={styles.accountHeaderTitle}>Cài đặt tài khoản</Text>
           </View>
-          <AccountRow icon="▣" title="Đổi mật khẩu & Bảo mật" onPress={() => setChangingPassword(true)} />
+          <AccountRow
+            icon="▣"
+            title="Đổi mật khẩu & Bảo mật"
+            onPress={() => setChangingPassword(true)}
+          />
           <AccountRow
             icon="⇥"
             title={loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
@@ -299,7 +417,10 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
-      <ChangePassword visible={changingPassword} onClose={() => setChangingPassword(false)} />
+      <ChangePassword
+        visible={changingPassword}
+        onClose={() => setChangingPassword(false)}
+      />
     </SafeAreaView>
   );
 }

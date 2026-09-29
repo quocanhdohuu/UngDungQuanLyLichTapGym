@@ -5,7 +5,7 @@ export const API_BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
   (Platform.OS === "web" && typeof window !== "undefined"
     ? `http://${window.location.hostname}:3000`
-    : "http://192.168.0.103:3000")
+    : "http://172.20.10.6:3000")
 ).replace(/\/$/, "");
 
 export async function apiRequest<T>(

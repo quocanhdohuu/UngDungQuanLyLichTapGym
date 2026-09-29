@@ -555,12 +555,17 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--admin-space-2);
+  gap: 6px;
 }
 
 .pagination button,
 .exercise-pagination button {
-  min-width: var(--admin-control-height);
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .pagination button.active,
@@ -568,6 +573,15 @@
   background: var(--admin-primary-soft);
   color: var(--green);
   border-color: var(--admin-border-hover);
+}
+
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .admin-modal-backdrop,
