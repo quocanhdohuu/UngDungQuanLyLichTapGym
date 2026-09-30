@@ -203,14 +203,16 @@ const ExercisesController = {
   getAlternatives: async (req, res) => {
     try {
       const exerciseId = Number(req.params.exerciseId);
+      if (!/^\d+$/.test(req.params.exerciseId) || !Number.isSafeInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).json({ message: "exerciseId không hợp lệ" });
+      }
       const data = await Exercises.getAlternatives(exerciseId);
       return res.json({
         data,
       });
     } catch (error) {
-      return res.status(500).json({
-        message: "Lấy danh sách bài tập thay thế thất bại",
-        error: error.message,
+      return res.status(error.sqlState === "45000" ? 400 : 500).json({
+        message: error.sqlState === "45000" ? error.sqlMessage : "Lấy danh sách bài tập thay thế thất bại",
       });
     }
   },

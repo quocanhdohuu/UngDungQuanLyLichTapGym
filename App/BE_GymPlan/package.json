@@ -8,6 +8,7 @@
     "dev": "node --watch src/server.js",
     "test": "node --test test/*.test.js",
     "db:workout-flow": "node test/run_sql.js",
+    "db:exercise-alternatives": "node test/run_sql.js --alternatives",
     "test:ui": "node test/mobile-ui.smoke.js"
   },
   "keywords": [],

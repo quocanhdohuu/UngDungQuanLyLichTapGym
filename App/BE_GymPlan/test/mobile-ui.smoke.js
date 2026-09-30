@@ -9,7 +9,7 @@ const query = (sql, args = []) => db.promise().query(sql, args).then(([rows]) =>
 async function run() {
   const fixture = "ui_" + Date.now();
   const password = "FixturePassword123";
-  let accountId, profileId, exerciseId, server, browser;
+  let accountId, profileId, exerciseId, alternativeId, server, browser;
   const screenshots = path.resolve(__dirname, "../../FE_GymPlan/Client_GymUser/GymPlan/.expo/verification");
   fs.mkdirSync(screenshots, { recursive: true });
   try {
@@ -17,6 +17,8 @@ async function run() {
     profileId = (await query("INSERT INTO GymUsers (accountId, fullName, sessionsPerWeek) VALUES (?, 'UI Test User', 3)", [accountId])).insertId;
     const description = "Hướng dẫn thực hiện:\n1. Nội dung kiểm thử bước một.\n2. Nội dung kiểm thử bước hai.\n3. Nội dung kiểm thử bước ba.\n4. Nội dung kiểm thử bước bốn.\nLỗi thường gặp:\n- Nội dung kiểm thử lỗi thường gặp.";
     exerciseId = (await query("INSERT INTO Exercises (name, description, difficulty) VALUES (?, ?, 'EASY')", [fixture + " Exercise", description])).insertId;
+    alternativeId = (await query("INSERT INTO Exercises (name, description, difficulty) VALUES (?, ?, 'MEDIUM')", [fixture + " Alternative", description])).insertId;
+    await query("INSERT INTO ExerciseAlternatives (exerciseId, alternativeExerciseId, priority, note) VALUES (?, ?, 1, 'UI alternative note')", [exerciseId, alternativeId]);
     const [muscle] = await query("SELECT groupId FROM MuscleGroups WHERE groupName = 'Chest' LIMIT 1");
     assert.ok(muscle, "UI fixture requires the existing Chest muscle group");
     await query("INSERT INTO ExerciseMuscleGroups (exerciseId, groupId, role) VALUES (?, ?, 'PRIMARY')", [exerciseId, muscle.groupId]);
@@ -34,7 +36,9 @@ async function run() {
     page.setDefaultTimeout(25000);
     page.setDefaultNavigationTimeout(60000);
     const errors = [];
+    const requests = [];
     page.on("pageerror", error => errors.push(error.message));
+    page.on("request", request => requests.push(request.url()));
     // Route the frontend's configured localhost API to this isolated test server.
     await page.route(/http:\/\/(localhost|127\.0\.0\.1):3000\//, async route => {
       const url = new URL(route.request().url());
@@ -67,14 +71,58 @@ async function run() {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "✓ Đã lưu", exact: true }).waitFor();
     assert.equal(Number(await page.getByLabel("Khối lượng hiệp 1 (kg)").inputValue()), 25);
+    const alternativesUrl = `**/api/user/${profileId}/exercises/${exerciseId}/alternatives`;
+    await page.route(alternativesUrl, route => route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "UI alternatives retry fixture" }) }));
+    await page.getByRole("button", { name: "Đổi bài tập", exact: true }).click();
+    await page.getByText("UI alternatives retry fixture", { exact: true }).waitFor();
+    await page.unroute(alternativesUrl);
+    await page.getByText("Thử lại", { exact: true }).click();
+    await page.getByText("UI alternative note", { exact: true }).waitFor();
+    // Wait for the native Modal fade before capturing its appearance.
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: path.join(screenshots, "exercise-alternatives.png"), fullPage: true });
+    await page.getByRole("button", { name: "Chọn " + fixture + " Alternative", exact: true }).click();
+    await page.getByText(/Các hiệp đã lưu sẽ được giữ nguyên/).waitFor();
+    await page.getByRole("button", { name: "Quay lại", exact: true }).click();
+    assert.equal(Number(await page.getByLabel("Khối lượng hiệp 1 (kg)").inputValue()), 25);
+    await page.getByRole("button", { name: "Đổi bài tập", exact: true }).click();
+    await page.getByRole("button", { name: "Chọn " + fixture + " Alternative", exact: true }).click();
+    await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await page.getByText("Thay thế cho: " + fixture + " Exercise", { exact: true }).waitFor();
+    await page.getByLabel("Khối lượng hiệp 1 (kg)").waitFor();
+    assert.equal(await page.getByLabel("Khối lượng hiệp 1 (kg)").inputValue(), "");
+    await page.getByText("2 hiệp × 10 lần • Nghỉ 60s", { exact: true }).waitFor();
+    assert.ok(requests.some(url => url.includes(`/exercises/${alternativeId}/previous-performance`)));
+    await page.getByLabel("Khối lượng hiệp 1 (kg)").fill("12");
+    await page.getByRole("button", { name: "Xác nhận hiệp", exact: true }).first().click();
+    await page.getByRole("button", { name: "✓ Đã lưu", exact: true }).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText("Thay thế cho: " + fixture + " Exercise", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "✓ Đã lưu", exact: true }).waitFor();
+    assert.equal(Number(await page.getByLabel("Khối lượng hiệp 1 (kg)").inputValue()), 12);
+    await page.screenshot({ path: path.join(screenshots, "workout-substituted.png"), fullPage: true });
+    await page.getByRole("button", { name: "Đổi bài tập", exact: true }).click();
+    await page.getByRole("button", { name: "Quay lại bài gốc", exact: true }).click();
+    await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
+    await page.getByText(fixture + " Exercise", { exact: true }).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "✓ Đã lưu", exact: true }).waitFor();
+    assert.equal(Number(await page.getByLabel("Khối lượng hiệp 1 (kg)").inputValue()), 25);
+    await query("DELETE FROM ExerciseAlternatives WHERE exerciseId = ? AND alternativeExerciseId = ?", [exerciseId, alternativeId]);
+    await page.getByRole("button", { name: "Đổi bài tập", exact: true }).click();
+    await page.getByText("Không có bài tập thay thế phù hợp.", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Đóng", exact: true }).click();
     await page.getByRole("button", { name: "Hoàn thành bài tập", exact: true }).click();
     await page.getByRole("button", { name: "KẾT THÚC BUỔI TẬP", exact: true }).click();
     await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
     await page.waitForURL(/\/history\/\d+/);
     await page.getByText("25 kg × 10 lần", { exact: true }).waitFor();
+    await page.getByText("12 kg × 10 lần", { exact: true }).waitFor();
+    await page.getByText("Thay thế cho: " + fixture + " Exercise", { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(screenshots, "history-substituted.png"), fullPage: true });
     await page.getByRole("button", { name: "Xem tiến trình", exact: true }).click();
     await page.waitForURL("**/progress");
-    await page.getByText("PR MỚI", { exact: true }).waitFor();
+    await page.getByText("PR MỚI", { exact: true }).first().waitFor();
     await page.screenshot({ path: path.join(screenshots, "progress.png"), fullPage: true });
     await page.getByRole("tab", { name: "Thư viện", exact: true }).click();
     await page.getByPlaceholder("Tìm kiếm bài tập (vd: Bench, Squa...").fill(fixture);
@@ -114,7 +162,7 @@ async function run() {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Nhập email", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS: login → template → workout → reload/resume → history → PR → exercise detail → custom plan → password → logout.");
+    console.log("PASS: login → template → workout → substitute/cancel/resume/restore → history → PR → exercise detail → custom plan → password → logout.");
   } catch (error) {
     if (browser) for (const context of browser.contexts()) for (const page of context.pages()) {
       await page.screenshot({ path: path.join(screenshots, "failure.png"), fullPage: true }).catch(() => {});
@@ -129,6 +177,7 @@ async function run() {
       await query("DELETE FROM Accounts WHERE accountId = ?", [accountId]);
     }
     if (exerciseId) await query("DELETE FROM Exercises WHERE exerciseId = ?", [exerciseId]);
+    if (alternativeId) await query("DELETE FROM Exercises WHERE exerciseId = ?", [alternativeId]);
     await db.promise().end();
   }
 }

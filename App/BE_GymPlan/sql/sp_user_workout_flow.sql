@@ -162,40 +162,42 @@ BEGIN
         END IF;
     END IF;
 
-    -- Tìm bản ghi bài tập đã có cho slot này trong buổi tập (giữ nguyên các hiệp đã tập nếu có)
+    -- Reuse the requested exercise only within its original prescription slot.
     SELECT performedExerciseId INTO v_performedId
     FROM PerformedExercises
     WHERE workoutSessionId = p_workoutSessionId
-      AND (
-          exerciseId = v_effectiveOriginalId
-          OR originalExerciseId = v_effectiveOriginalId
-      )
+      AND COALESCE(originalExerciseId, exerciseId) = v_effectiveOriginalId
+      AND exerciseId = p_exerciseId
+    ORDER BY isActive DESC, performedExerciseId DESC
     LIMIT 1;
 
     IF v_performedId IS NULL THEN
-        IF p_originalExerciseId IS NOT NULL AND p_originalExerciseId != p_exerciseId THEN
-            INSERT INTO PerformedExercises (workoutSessionId, exerciseId, originalExerciseId, isSubstituted, isCompleted)
-            VALUES (p_workoutSessionId, p_exerciseId, p_originalExerciseId, TRUE, FALSE);
-        ELSE
-            INSERT INTO PerformedExercises (workoutSessionId, exerciseId, originalExerciseId, isSubstituted, isCompleted)
-            VALUES (p_workoutSessionId, p_exerciseId, NULL, FALSE, FALSE);
-        END IF;
-        SET v_performedId = LAST_INSERT_ID();
-    ELSE
-        IF p_originalExerciseId IS NOT NULL AND p_originalExerciseId != p_exerciseId THEN
-            UPDATE PerformedExercises
-            SET exerciseId = p_exerciseId,
-                originalExerciseId = p_originalExerciseId,
-                isSubstituted = TRUE
-            WHERE performedExerciseId = v_performedId;
-        ELSE
-            UPDATE PerformedExercises
-            SET exerciseId = p_exerciseId,
-                originalExerciseId = NULL,
-                isSubstituted = FALSE
+        -- Only an empty record can be repurposed. Saved sets keep their exercise.
+        SELECT pe.performedExerciseId INTO v_performedId
+        FROM PerformedExercises pe
+        WHERE pe.workoutSessionId = p_workoutSessionId
+          AND COALESCE(pe.originalExerciseId, pe.exerciseId) = v_effectiveOriginalId
+          AND NOT EXISTS (SELECT 1 FROM ExerciseSets es WHERE es.performedExerciseId = pe.performedExerciseId)
+        ORDER BY pe.isActive DESC, pe.performedExerciseId DESC
+        LIMIT 1;
+        IF v_performedId IS NOT NULL THEN
+            UPDATE PerformedExercises SET exerciseId = p_exerciseId, isCompleted = FALSE
             WHERE performedExerciseId = v_performedId;
         END IF;
     END IF;
+
+    IF v_performedId IS NULL THEN
+        INSERT INTO PerformedExercises (workoutSessionId, exerciseId, originalExerciseId, isSubstituted, isCompleted)
+        VALUES (p_workoutSessionId, p_exerciseId, v_effectiveOriginalId, p_exerciseId <> v_effectiveOriginalId, FALSE);
+        SET v_performedId = LAST_INSERT_ID();
+    END IF;
+
+    UPDATE PerformedExercises
+    SET originalExerciseId = v_effectiveOriginalId,
+        isSubstituted = (exerciseId <> v_effectiveOriginalId),
+        isActive = (performedExerciseId = v_performedId)
+    WHERE workoutSessionId = p_workoutSessionId
+      AND (COALESCE(originalExerciseId, exerciseId) = v_effectiveOriginalId OR performedExerciseId = v_performedId);
 
     SELECT
         pe.performedExerciseId,
@@ -203,6 +205,7 @@ BEGIN
         pe.exerciseId,
         pe.originalExerciseId,
         pe.isSubstituted,
+        pe.isActive,
         pe.isCompleted,
         e.name AS exerciseName,
         orig.name AS originalExerciseName,
@@ -482,15 +485,23 @@ BEGIN
         ea.alternativeId,
         ea.exerciseId AS originalExerciseId,
         ea.alternativeExerciseId,
+        e.exerciseId,
+        e.name,
         e.name AS exerciseName,
         e.description,
         e.difficulty,
+        (SELECT em.mediaUrl FROM ExerciseMedia em
+         WHERE em.exerciseId = e.exerciseId AND em.mediaType = 'IMAGE'
+         ORDER BY em.sortOrder, em.mediaId LIMIT 1) AS preview,
         (
             SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
             FROM ExerciseMuscleGroups emg
             JOIN MuscleGroups mg ON mg.groupId = emg.groupId
             WHERE emg.exerciseId = e.exerciseId AND emg.role = 'PRIMARY'
         ) AS primaryMuscles,
+        (SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
+         FROM ExerciseMuscleGroups emg JOIN MuscleGroups mg ON mg.groupId = emg.groupId
+         WHERE emg.exerciseId = e.exerciseId AND emg.role = 'SECONDARY') AS secondaryMuscles,
         (
             SELECT GROUP_CONCAT(DISTINCT eq.equipmentName ORDER BY eq.equipmentName SEPARATOR ', ')
             FROM ExerciseEquipment ee

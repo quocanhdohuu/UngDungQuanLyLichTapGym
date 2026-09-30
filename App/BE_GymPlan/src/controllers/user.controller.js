@@ -118,8 +118,8 @@ module.exports = {
   }),
   addPerformedExercise: handle((req) => {
     if (!positiveId(req.body.exerciseId)) fail("exerciseId không hợp lệ");
+    if (req.body.originalExerciseId != null && !positiveId(req.body.originalExerciseId)) fail("originalExerciseId không hợp lệ");
     const originalExerciseId = req.body.originalExerciseId != null ? Number(req.body.originalExerciseId) : null;
-    if (originalExerciseId != null && !positiveId(originalExerciseId)) fail("originalExerciseId không hợp lệ");
     return User.addPerformedExercise(
       Number(req.params.profileId),
       Number(req.params.workoutSessionId),

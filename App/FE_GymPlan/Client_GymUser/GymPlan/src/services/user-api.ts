@@ -94,12 +94,16 @@ export type WorkoutHistory = {
   totalVolume: number | string;
 };
 export type ExerciseAlternative = {
+  exerciseId: number;
+  name: string;
   alternativeId: number;
   originalExerciseId: number;
   alternativeExerciseId: number;
   exerciseName: string;
   description: string | null;
   difficulty: "EASY" | "MEDIUM" | "HARD" | null;
+  preview: string | null;
+  secondaryMuscles: string | null;
   primaryMuscles: string | null;
   equipment: string | null;
   priority: number;
@@ -120,6 +124,10 @@ export type WorkoutDetail = {
     exerciseId: number;
     originalExerciseId?: number | null;
     isSubstituted?: boolean;
+    isActive?: boolean;
+    description?: string | null;
+    difficulty?: "EASY" | "MEDIUM" | "HARD" | null;
+    preview?: string | null;
     exerciseName: string;
     originalExerciseName?: string | null;
     primaryMuscles?: string | null;

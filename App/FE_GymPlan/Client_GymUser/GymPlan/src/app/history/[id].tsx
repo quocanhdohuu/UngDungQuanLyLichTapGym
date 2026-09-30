@@ -18,6 +18,7 @@ export default function WorkoutHistoryDetail() {
       <View style={ui.card}><Text style={ui.heading}>{formatNumber(volume / 1000)} tấn • {session.totalDuration ?? 0} phút</Text><Text style={ui.muted}>{session.exercises.length} bài tập</Text></View>
       {session.exercises.map(exercise => <View style={ui.card} key={exercise.performedExerciseId}>
         <Text style={ui.heading}>{exercise.exerciseName}</Text>
+        {exercise.isSubstituted && exercise.originalExerciseName && <Text style={ui.accent}>Thay thế cho: {exercise.originalExerciseName}</Text>}
         {exercise.sets.map(set => <View style={ui.row} key={set.setId}>
           <Text style={ui.muted}>Hiệp {set.setNumber}</Text><Text style={ui.text}>{formatNumber(set.weight)} kg × {set.reps ?? "—"} lần</Text>
         </View>)}

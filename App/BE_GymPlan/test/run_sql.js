@@ -4,10 +4,17 @@ const path = require("node:path");
 const mysql = require("mysql2/promise");
 
 async function run() {
-  const sql = fs.readFileSync(path.join(__dirname, "../sql/sp_user_workout_flow.sql"), "utf8");
-  const procedures = [...sql.matchAll(/CREATE\s+PROCEDURE\s+(\w+)[\s\S]*?END\s*\$\$/gi)]
-    .map(match => ({ name: match[1], sql: match[0].replace(/\$\$$/, "").trim() }));
-  if (procedures.length !== 13) throw new Error("Expected exactly 13 workout procedures");
+  const files = process.argv.includes("--alternatives") ? ["sp_exercise_alternatives.sql"]
+    : ["sp_user_workout_flow.sql", "sp_exercise_alternatives.sql"];
+  const definitions = new Map();
+  for (const file of files) {
+    const sql = fs.readFileSync(path.join(__dirname, "../sql", file), "utf8");
+    for (const match of sql.matchAll(/CREATE\s+PROCEDURE\s+(\w+)[\s\S]*?END\s*\$\$/gi)) {
+      definitions.set(match[1], { name: match[1], sql: match[0].replace(/\$\$$/, "").trim() });
+    }
+  }
+  const procedures = [...definitions.values()];
+  if (procedures.length !== (process.argv.includes("--alternatives") ? 2 : 13)) throw new Error("Unexpected procedure count");
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 3306),
@@ -28,14 +35,25 @@ async function run() {
         originals.set(procedure.name, null);
       }
     }
+    const migration = fs.readFileSync(path.join(__dirname, "../sql/migrate_exercise_selection.sql"), "utf8");
+    for (const statement of migration.replace(/^\s*--.*$/gm, "").split(";").filter(s => s.trim())) {
+      await connection.query(statement);
+    }
     for (const procedure of procedures) {
       changed.push(procedure.name);
       await connection.query("DROP PROCEDURE IF EXISTS " + procedure.name);
       await connection.query(procedure.sql);
       console.log("Installed " + procedure.name);
     }
-    console.log("Installed all 13 procedures; tables and existing records unchanged.");
+    const seed = fs.readFileSync(path.join(__dirname, "../../../Database/seed_exercise_alternatives.sql"), "utf8");
+    await connection.beginTransaction();
+    for (const statement of seed.replace(/^\s*--.*$/gm, "").split(";").filter(s => s.trim())) {
+      await connection.query(statement);
+    }
+    await connection.commit();
+    console.log(`Installed ${procedures.length} procedures and seeded exercise alternatives.`);
   } catch (error) {
+    await connection.rollback();
     for (const name of changed.reverse()) {
       await connection.query("DROP PROCEDURE IF EXISTS " + name);
       if (originals.get(name)) await connection.query(originals.get(name));

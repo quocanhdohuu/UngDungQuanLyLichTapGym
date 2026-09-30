@@ -420,7 +420,8 @@ CREATE TABLE ExerciseAlternatives (
 
 ALTER TABLE PerformedExercises
 ADD COLUMN originalExerciseId INT NULL AFTER exerciseId,
-ADD COLUMN isSubstituted BOOLEAN NOT NULL DEFAULT FALSE AFTER originalExerciseId;
+ADD COLUMN isSubstituted BOOLEAN NOT NULL DEFAULT FALSE AFTER originalExerciseId,
+ADD COLUMN isActive BOOLEAN NOT NULL DEFAULT TRUE AFTER isSubstituted;
 
 ALTER TABLE PerformedExercises
 ADD CONSTRAINT fk_performed_original_exercise
