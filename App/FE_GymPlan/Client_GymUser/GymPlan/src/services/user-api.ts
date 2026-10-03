@@ -175,9 +175,13 @@ export type CustomPlan = {
 };
 export type BodyMetricItem = {
   metricId: number;
+  profileId?: number;
   height: number | string;
   weight: number | string;
   recordedAt: string;
+  level?: Level | null;
+  goal?: string | null;
+  sessionsPerWeek?: number | null;
 };
 export type LibraryExercise = {
   guide?: {

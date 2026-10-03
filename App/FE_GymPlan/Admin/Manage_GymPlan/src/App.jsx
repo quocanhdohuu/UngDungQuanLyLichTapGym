@@ -12,7 +12,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/admin/users" replace />} />
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
         <Route element={<AdminLayout />}>
           <Route path="/admin/dashboard" element={<DashboardPage />} />
           <Route path="/admin/users" element={<UsersPage />} />

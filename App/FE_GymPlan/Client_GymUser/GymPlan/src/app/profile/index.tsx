@@ -1,5 +1,6 @@
 import { DataState } from "@/components/common/data-state";
 import { ChangePassword } from "@/components/common/change-password";
+import { BodyMetricHistory } from "@/components/common/body-metric-history";
 import { useApiData } from "@/hooks/use-api-data";
 import { apiRequest } from "@/services/api";
 import {
@@ -172,6 +173,7 @@ function AccountRow({
 
 export default function ProfileScreen() {
   const [changingPassword, setChangingPassword] = useState(false);
+  const [viewingHistory, setViewingHistory] = useState(false);
   const state = useApiData(userApi.profile);
   const profile = state.data;
   const [fullName, setFullName] = useState("");
@@ -332,7 +334,12 @@ export default function ProfileScreen() {
 
             <View style={styles.bodyCard}>
               <View style={styles.cardTitleRow}>
-                <View style={styles.cardTitleGroup}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Xem chi tiết thể trạng"
+                  onPress={() => setViewingHistory(true)}
+                  style={styles.cardTitleGroup}
+                >
                   <Text style={styles.cardTitleIcon}>▤</Text>
                   <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
                   <Text style={styles.updated}>
@@ -340,7 +347,15 @@ export default function ProfileScreen() {
                       ? formatDate(profile.bodyMetricUpdatedAt)
                       : "Chưa có chỉ số"}
                   </Text>
-                </View>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Chi tiết thể trạng"
+                  onPress={() => setViewingHistory(true)}
+                  style={styles.detailLink}
+                >
+                  <Text style={styles.detailLinkText}>Chi tiết ›</Text>
+                </Pressable>
               </View>
               <View style={styles.measureRow}>
                 <View style={styles.measure}>
@@ -420,6 +435,10 @@ export default function ProfileScreen() {
       <ChangePassword
         visible={changingPassword}
         onClose={() => setChangingPassword(false)}
+      />
+      <BodyMetricHistory
+        visible={viewingHistory}
+        onClose={() => setViewingHistory(false)}
       />
     </SafeAreaView>
   );
@@ -538,10 +557,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  cardTitleGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
+  cardTitleGroup: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1 },
   cardTitleIcon: { color: colors.green, fontSize: 20 },
   cardTitle: { color: colors.text, fontSize: 21, fontWeight: "900" },
   updated: { color: colors.muted, fontSize: 13 },
+  detailLink: {
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 7,
+    backgroundColor: colors.surface,
+  },
+  detailLinkText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "800",
+  },
   measureRow: { flexDirection: "row", gap: 14, marginBottom: 20 },
   measure: {
     flex: 1,

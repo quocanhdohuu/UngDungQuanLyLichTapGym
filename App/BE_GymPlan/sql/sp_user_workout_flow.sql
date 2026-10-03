@@ -457,14 +457,18 @@ CREATE PROCEDURE sp_GetUserBodyMetrics(
 )
 BEGIN
     SELECT
-        metricId,
-        profileId,
-        height,
-        weight,
-        recordedAt
-    FROM BodyMetrics
-    WHERE profileId = p_profileId
-    ORDER BY recordedAt DESC, metricId DESC;
+        bm.metricId,
+        bm.profileId,
+        bm.height,
+        bm.weight,
+        bm.recordedAt,
+        gu.level,
+        gu.goal,
+        gu.sessionsPerWeek
+    FROM BodyMetrics bm
+    INNER JOIN GymUsers gu ON gu.profileId = bm.profileId
+    WHERE bm.profileId = p_profileId
+    ORDER BY bm.recordedAt DESC, bm.metricId DESC;
 END $$
 DELIMITER ;
 
