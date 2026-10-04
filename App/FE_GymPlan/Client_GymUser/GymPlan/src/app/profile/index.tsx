@@ -340,13 +340,15 @@ export default function ProfileScreen() {
                   onPress={() => setViewingHistory(true)}
                   style={styles.cardTitleGroup}
                 >
-                  <Text style={styles.cardTitleIcon}>▤</Text>
+                <Text style={styles.cardTitleIcon}>▣</Text>
+                <View>
                   <Text style={styles.cardTitle}>Thông tin thể trạng</Text>
                   <Text style={styles.updated}>
                     {profile.bodyMetricUpdatedAt
                       ? formatDate(profile.bodyMetricUpdatedAt)
                       : "Chưa có chỉ số"}
                   </Text>
+                </View>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -523,7 +525,7 @@ const styles = StyleSheet.create({
   cameraText: { color: "#13200E", fontSize: 18 },
   profileCopy: { flex: 1, marginLeft: 19, minWidth: 0 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  profileName: { color: colors.text, fontSize: 23, fontWeight: "900" },
+  profileName: { color: colors.text, fontSize: 18, fontWeight: "900" },
   vip: {
     color: "#3A2007",
     backgroundColor: colors.orange,
@@ -594,7 +596,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepText: { color: colors.text, fontSize: 24, lineHeight: 26 },
-  stepValue: { color: colors.text, fontSize: 23, fontWeight: "900" },
+  stepValue: { color: colors.text, fontSize: 15, fontWeight: "900" },
   stepUnit: { fontSize: 16, fontWeight: "800" },
   optionSection: { marginBottom: 18 },
   optionTitle: {
@@ -607,7 +609,7 @@ const styles = StyleSheet.create({
   optionRow: { flexDirection: "row", gap: 9 },
   option: {
     flex: 1,
-    minHeight: 49,
+    minHeight: 38,
     borderRadius: 10,
     backgroundColor: colors.surface,
     alignItems: "center",
@@ -617,7 +619,7 @@ const styles = StyleSheet.create({
   optionActive: { backgroundColor: colors.green },
   optionText: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900",
     textAlign: "center",
   },
