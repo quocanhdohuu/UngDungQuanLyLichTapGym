@@ -67,6 +67,8 @@ Exercises.getDetailsById = async (exerciseId) => {
     .join(", ");
   const equipmentNames = equipmentRows.map((e) => e.equipmentName).filter(Boolean).join(", ");
 
+  const alternatives = await Exercises.getAlternatives(exerciseId);
+
   return {
     ...exerciseRows[0],
     guide: getExerciseGuide(exerciseRows[0]),
@@ -77,19 +79,21 @@ Exercises.getDetailsById = async (exerciseId) => {
     equipmentIds: equipmentRows.map((item) => item.equipmentId),
     equipmentList: equipmentRows,
     media,
+    alternatives,
   };
 };
 
 Exercises.createWithProcedure = async (data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_AddExercise(?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_AddExercise(?, ?, ?, ?, ?, ?, ?)", [
       data.name,
       data.description ?? null,
       data.difficulty,
       JSON.stringify(data.muscleGroups),
       JSON.stringify(data.equipmentIds),
       JSON.stringify(data.media),
+      JSON.stringify(data.alternatives ?? []),
     ]);
 
   return result[0]?.[0] || null;
@@ -98,7 +102,7 @@ Exercises.createWithProcedure = async (data) => {
 Exercises.updateWithProcedure = async (exerciseId, data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_UpdateExercise(?, ?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_UpdateExercise(?, ?, ?, ?, ?, ?, ?, ?)", [
       exerciseId,
       data.name,
       data.description ?? null,
@@ -106,6 +110,7 @@ Exercises.updateWithProcedure = async (exerciseId, data) => {
       JSON.stringify(data.muscleGroups),
       JSON.stringify(data.equipmentIds),
       JSON.stringify(data.media),
+      JSON.stringify(data.alternatives ?? []),
     ]);
 
   return result[0]?.[0] || null;

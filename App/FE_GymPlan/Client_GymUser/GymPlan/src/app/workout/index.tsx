@@ -14,21 +14,45 @@ const selectedExercise = (session: WorkoutDetail, exerciseId: number) => session
   (item.originalExerciseId ?? item.exerciseId) === exerciseId && item.isActive !== false);
 const difficultyLabel = { EASY: "Dễ", MEDIUM: "Trung bình", HARD: "Khó" };
 
-function WorkoutVideo({ uri }: { uri: string }) {
+function WorkoutVideo({ uri, height = 230 }: { uri: string; height?: number }) {
   const player = useVideoPlayer(uri, video => {
     video.muted = true;
     video.loop = true;
+    try {
+      video.play();
+    } catch {
+      // Bỏ qua nếu lỗi khởi tạo
+    }
   });
   const { status } = useEvent(player, "statusChange", { status: player.status });
+  useEffect(() => {
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Tránh lỗi NativeSharedObjectNotFoundException khi unmount
+      }
+    };
+  }, [player]);
   useFocusEffect(useCallback(() => {
-    player.play();
-    return () => player.pause();
+    try {
+      player.play();
+    } catch {
+      // Bỏ qua lỗi nếu player native chưa sẵn sàng hoặc đã giải phóng
+    }
+    return () => {
+      try {
+        player.pause();
+      } catch {
+        // Tránh lỗi NativeSharedObjectNotFoundException khi unmount / chuyển trang
+      }
+    };
   }, [player]));
 
   return <View style={{ gap: 8 }}>
     <View style={{ borderRadius: 14, overflow: "hidden", backgroundColor: "#0D1110" }}>
       <VideoView player={player} nativeControls={false} playsInline contentFit="contain"
-        accessibilityLabel="Video hướng dẫn bài tập" style={{ width: "100%", height: 230 }} />
+        accessibilityLabel="Video hướng dẫn bài tập" style={{ width: "100%", height }} />
     </View>
     {status === "loading" && <Text style={ui.muted}>Đang tải video hướng dẫn…</Text>}
     {status === "error" && <Text style={ui.error}>Không tải được video hướng dẫn.</Text>}
@@ -47,9 +71,13 @@ function AlternativePicker({ exercise, activeId, onChoose, onClose }: {
         <DataState {...alternatives} retry={alternatives.refresh} empty={alternatives.data?.length === 0 && "Không có bài tập thay thế phù hợp."} />
         {activeId !== exercise.exerciseId && <Button title="Quay lại bài gốc" secondary onPress={() => onChoose({ exerciseId: exercise.exerciseId, name: exercise.exerciseName })} />}
         {[...(alternatives.data || [])].sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name)).map(item => <View style={ui.card} key={item.exerciseId}>
-          {!!item.preview && <Image source={{ uri: item.preview }} style={{ height: 120, borderRadius: 8 }} contentFit="contain" accessibilityLabel={item.name} />}
           <Text style={ui.heading}>{item.name}</Text>
           <Text style={ui.muted}>Ưu tiên {item.priority} • Độ khó: {item.difficulty ? difficultyLabel[item.difficulty] : "Chưa cập nhật"}</Text>
+          {!!item.videoUrl ? (
+            <WorkoutVideo key={item.exerciseId + ":" + item.videoUrl} uri={item.videoUrl} height={180} />
+          ) : !!item.preview ? (
+            <Image source={{ uri: item.preview }} style={{ height: 120, borderRadius: 8 }} contentFit="contain" accessibilityLabel={item.name} />
+          ) : null}
           <Text style={ui.text}>Nhóm cơ chính: {item.primaryMuscles || "Chưa cập nhật"}</Text>
           {!!item.secondaryMuscles && <Text style={ui.muted}>Nhóm cơ phụ: {item.secondaryMuscles}</Text>}
           <Text style={ui.text}>Dụng cụ: {item.equipment || "Chưa cập nhật"}</Text>

@@ -23,6 +23,7 @@ const emptyForm = () => ({
   muscleGroups: [],
   equipmentIds: [],
   media: [],
+  alternatives: [],
 });
 
 const splitValues = (value) => {
@@ -167,6 +168,8 @@ const ExercisesPage = () => {
   const [mediaLoading, setMediaLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [altSearchTerm, setAltSearchTerm] = useState("");
+  const [selectedAltCandidateId, setSelectedAltCandidateId] = useState("");
 
   useEffect(() => {
     if (!selectedMedia) return undefined;
@@ -247,19 +250,46 @@ const ExercisesPage = () => {
     setFormMode("add");
     setForm(emptyForm());
     setFormError("");
+    setAltSearchTerm("");
+    setSelectedAltCandidateId("");
   };
 
   const openEditForm = async (exerciseId) => {
     setFormMode("edit");
     setFormLoading(true);
     setFormError("");
+    setAltSearchTerm("");
+    setSelectedAltCandidateId("");
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/exercises/${exerciseId}`,
-      );
+      const [response, altResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/exercises/${exerciseId}`),
+        fetch(`${API_BASE_URL}/api/exercises/${exerciseId}/alternatives`).catch(
+          () => null,
+        ),
+      ]);
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.message || "Không thể tải bài tập");
+
+      let rawAlternatives = Array.isArray(data.alternatives)
+        ? data.alternatives
+        : [];
+      if (rawAlternatives.length === 0 && altResponse && altResponse.ok) {
+        try {
+          const altData = await altResponse.json();
+          const list = Array.isArray(altData.data)
+            ? altData.data
+            : Array.isArray(altData)
+              ? altData
+              : [];
+          if (list.length > 0) {
+            rawAlternatives = list;
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+
       setForm({
         name: data.name || "",
         description: data.description || "",
@@ -272,6 +302,25 @@ const ExercisesPage = () => {
           ...item,
           _existing: true,
         })),
+        alternatives: rawAlternatives.map((item, index) => {
+          const targetId = Number(
+            item.alternativeExerciseId || item.exerciseId,
+          );
+          const matched = exercises.find(
+            (ex) => Number(ex.exerciseId) === targetId,
+          );
+          return {
+            alternativeExerciseId: targetId,
+            exerciseName:
+              item.exerciseName ||
+              item.name ||
+              matched?.name ||
+              `Bài tập #${targetId}`,
+            difficulty: item.difficulty || matched?.difficulty || "",
+            priority: Number(item.priority || index + 1),
+            note: item.note || "",
+          };
+        }),
         exerciseId: data.exerciseId,
       });
     } catch (err) {
@@ -399,6 +448,88 @@ const ExercisesPage = () => {
     }
   };
 
+  const availableCandidates = useMemo(() => {
+    const selectedAltIds = new Set(
+      (form.alternatives || []).map((alt) =>
+        Number(alt.alternativeExerciseId),
+      ),
+    );
+    const currentExerciseId =
+      formMode === "edit" ? Number(form.exerciseId) : null;
+
+    return exercises.filter((ex) => {
+      const exId = Number(ex.exerciseId);
+      if (currentExerciseId && exId === currentExerciseId) return false;
+      if (selectedAltIds.has(exId)) return false;
+      if (altSearchTerm.trim()) {
+        const query = altSearchTerm.trim().toLowerCase();
+        return (
+          ex.name.toLowerCase().includes(query) ||
+          (ex.description && ex.description.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    });
+  }, [exercises, form.alternatives, form.exerciseId, formMode, altSearchTerm]);
+
+  const handleAddAlternative = () => {
+    if (!selectedAltCandidateId) return;
+    const targetId = Number(selectedAltCandidateId);
+    const candidate = exercises.find(
+      (ex) => Number(ex.exerciseId) === targetId,
+    );
+    if (!candidate) return;
+
+    const nextPriority =
+      form.alternatives.length > 0
+        ? Math.max(
+            ...form.alternatives.map((a) => Number(a.priority) || 0),
+          ) + 1
+        : 1;
+
+    setForm((current) => ({
+      ...current,
+      alternatives: [
+        ...current.alternatives,
+        {
+          alternativeExerciseId: targetId,
+          exerciseName: candidate.name,
+          difficulty: candidate.difficulty || "",
+          priority: nextPriority,
+          note: "",
+        },
+      ],
+    }));
+
+    setSelectedAltCandidateId("");
+    setAltSearchTerm("");
+  };
+
+  const handleRemoveAlternative = (index) => {
+    setForm((current) => ({
+      ...current,
+      alternatives: current.alternatives.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleUpdateAlternativePriority = (index, value) => {
+    setForm((current) => ({
+      ...current,
+      alternatives: current.alternatives.map((item, i) =>
+        i === index ? { ...item, priority: value } : item,
+      ),
+    }));
+  };
+
+  const handleUpdateAlternativeNote = (index, value) => {
+    setForm((current) => ({
+      ...current,
+      alternatives: current.alternatives.map((item, i) =>
+        i === index ? { ...item, note: value } : item,
+      ),
+    }));
+  };
+
   const submitForm = async (event) => {
     event.preventDefault();
     if (formLoading || mediaLoading) return;
@@ -409,6 +540,36 @@ const ExercisesPage = () => {
       return setFormError("Tên bài tập không được để trống.");
     if (primaryCount === 0)
       return setFormError("Phải chọn ít nhất một cơ chính.");
+
+    for (const alt of form.alternatives) {
+      const priorityNum = Number(alt.priority);
+      if (!Number.isInteger(priorityNum) || priorityNum <= 0) {
+        return setFormError(
+          "Độ ưu tiên của bài tập thay thế phải là số nguyên lớn hơn 0.",
+        );
+      }
+      if (alt.note && alt.note.length > 255) {
+        return setFormError(
+          "Ghi chú bài tập thay thế không được vượt quá 255 ký tự.",
+        );
+      }
+    }
+
+    const altIds = form.alternatives.map((a) =>
+      Number(a.alternativeExerciseId),
+    );
+    if (new Set(altIds).size !== altIds.length) {
+      return setFormError("Danh sách bài tập thay thế không được trùng lặp.");
+    }
+    if (
+      formMode === "edit" &&
+      form.exerciseId &&
+      altIds.includes(Number(form.exerciseId))
+    ) {
+      return setFormError(
+        "Không thể chọn chính bài tập hiện tại làm bài tập thay thế.",
+      );
+    }
 
     setFormLoading(true);
     setFormError("");
@@ -426,6 +587,11 @@ const ExercisesPage = () => {
         publicId: item.publicId,
         mediaType: item.mediaType,
         sortOrder: index + 1,
+      })),
+      alternatives: form.alternatives.map((item) => ({
+        alternativeExerciseId: Number(item.alternativeExerciseId),
+        priority: Number(item.priority),
+        note: item.note ? item.note.trim() : null,
       })),
     };
 
@@ -951,6 +1117,131 @@ const ExercisesPage = () => {
                     })}
                   </div>
                 </label>
+                <div className="admin-form-field">
+                  <div className="exercise-section-header">
+                    <span>Bài tập thay thế</span>
+                    {form.alternatives.length > 0 && (
+                      <span className="admin-badge admin-badge--success">
+                        {form.alternatives.length} bài tập
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="exercise-alt-picker-row">
+                    <input
+                      type="text"
+                      className="exercise-alt-search-input"
+                      placeholder="Tìm kiếm bài tập thay thế..."
+                      value={altSearchTerm}
+                      onChange={(event) => {
+                        setAltSearchTerm(event.target.value);
+                        setSelectedAltCandidateId("");
+                      }}
+                    />
+                    <select
+                      className="exercise-alt-select"
+                      value={selectedAltCandidateId}
+                      onChange={(event) =>
+                        setSelectedAltCandidateId(event.target.value)
+                      }
+                    >
+                      <option value="">
+                        {availableCandidates.length === 0
+                          ? "-- Không có bài tập phù hợp --"
+                          : `-- Chọn bài tập thay thế (${availableCandidates.length}) --`}
+                      </option>
+                      {availableCandidates.map((cand) => (
+                        <option key={cand.exerciseId} value={cand.exerciseId}>
+                          {cand.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="admin-button admin-button--secondary exercise-alt-add-btn"
+                      onClick={handleAddAlternative}
+                      disabled={!selectedAltCandidateId}
+                    >
+                      <AdminIcon name="plus" /> Thêm
+                    </button>
+                  </div>
+
+                  {form.alternatives.length === 0 ? (
+                    <div className="exercise-alt-empty">
+                      Chưa có bài tập thay thế nào. Tìm kiếm hoặc chọn bài tập ở trên và nhấn "Thêm".
+                    </div>
+                  ) : (
+                    <div className="exercise-alt-list">
+                      {form.alternatives.map((altItem, index) => (
+                        <div
+                          key={`${altItem.alternativeExerciseId}-${index}`}
+                          className="exercise-alt-item"
+                        >
+                          <div className="exercise-alt-item-header">
+                            <div className="exercise-alt-item-name">
+                              <strong>
+                                {altItem.exerciseName ||
+                                  `Bài tập #${altItem.alternativeExerciseId}`}
+                              </strong>
+                              {altItem.difficulty && (
+                                <span
+                                  className={`admin-badge difficulty-tag ${String(
+                                    altItem.difficulty,
+                                  )
+                                    .trim()
+                                    .toLowerCase()}`}
+                                >
+                                  {getDifficultyLabel(altItem.difficulty)}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="admin-button admin-button--danger"
+                              onClick={() => handleRemoveAlternative(index)}
+                              aria-label={`Xóa bài tập thay thế ${altItem.exerciseName}`}
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                          <div className="exercise-alt-item-body">
+                            <label className="exercise-alt-control exercise-alt-priority">
+                              <span className="exercise-alt-label">Ưu tiên:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="127"
+                                value={altItem.priority}
+                                onChange={(event) =>
+                                  handleUpdateAlternativePriority(
+                                    index,
+                                    event.target.value,
+                                  )
+                                }
+                                required
+                              />
+                            </label>
+                            <label className="exercise-alt-control exercise-alt-note">
+                              <span className="exercise-alt-label">Ghi chú:</span>
+                              <input
+                                type="text"
+                                placeholder="Ghi chú (vd: Thay thế khi không có thiết bị...)"
+                                value={altItem.note}
+                                onChange={(event) =>
+                                  handleUpdateAlternativeNote(
+                                    index,
+                                    event.target.value,
+                                  )
+                                }
+                                maxLength={255}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="admin-form-field">
                   <span>Media</span>
                   <input

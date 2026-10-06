@@ -25,6 +25,9 @@ BEGIN
         (SELECT em.mediaUrl FROM ExerciseMedia em
          WHERE em.exerciseId = e.exerciseId AND em.mediaType = 'IMAGE'
          ORDER BY em.sortOrder, em.mediaId LIMIT 1) AS preview,
+        (SELECT em.mediaUrl FROM ExerciseMedia em
+         WHERE em.exerciseId = e.exerciseId AND em.mediaType = 'VIDEO'
+         ORDER BY em.sortOrder, em.mediaId LIMIT 1) AS videoUrl,
         (
             SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
             FROM ExerciseMuscleGroups emg

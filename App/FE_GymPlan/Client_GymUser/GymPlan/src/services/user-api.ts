@@ -103,6 +103,7 @@ export type ExerciseAlternative = {
   description: string | null;
   difficulty: "EASY" | "MEDIUM" | "HARD" | null;
   preview: string | null;
+  videoUrl?: string | null;
   secondaryMuscles: string | null;
   primaryMuscles: string | null;
   equipment: string | null;

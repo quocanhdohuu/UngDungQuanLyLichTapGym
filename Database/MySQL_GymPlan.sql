@@ -2204,7 +2204,8 @@ CREATE PROCEDURE sp_AddExercise(
     IN p_difficulty VARCHAR(20),
     IN p_muscleGroups JSON,
     IN p_equipmentIds JSON,
-    IN p_media JSON
+    IN p_media JSON,
+    IN p_alternatives JSON
 )
 BEGIN
     DECLARE v_exerciseId INT;
@@ -2333,6 +2334,101 @@ BEGIN
 
     END IF;
 
+    -- =============================================
+    -- 6. Thêm bài tập thay thế
+    -- =============================================
+
+    IF p_alternatives IS NOT NULL
+       AND JSON_LENGTH(p_alternatives) > 0 THEN
+
+        -- Không được chọn chính bài tập hiện tại làm bài tập thay thế
+        IF EXISTS (
+            SELECT 1 FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            WHERE jt.alternativeExerciseId = v_exerciseId
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Không thể chọn chính bài tập hiện tại làm bài tập thay thế';
+        END IF;
+
+        -- Không được trùng alternativeExerciseId
+        IF EXISTS (
+            SELECT jt.alternativeExerciseId
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            GROUP BY jt.alternativeExerciseId
+            HAVING COUNT(*) > 1
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Danh sách bài tập thay thế bị trùng lặp';
+        END IF;
+
+        -- alternativeExerciseId phải tồn tại trong Exercises
+        IF EXISTS (
+            SELECT jt.alternativeExerciseId
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            LEFT JOIN Exercises e ON e.exerciseId = jt.alternativeExerciseId
+            WHERE jt.alternativeExerciseId IS NULL OR e.exerciseId IS NULL
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Bài tập thay thế không tồn tại trong hệ thống';
+        END IF;
+
+        -- priority phải > 0
+        IF EXISTS (
+            SELECT 1
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    priority INT PATH '$.priority'
+                )
+            ) AS jt
+            WHERE jt.priority IS NULL OR jt.priority <= 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Độ ưu tiên của bài tập thay thế phải lớn hơn 0';
+        END IF;
+
+        INSERT INTO ExerciseAlternatives (
+            exerciseId,
+            alternativeExerciseId,
+            priority,
+            note
+        )
+        SELECT
+            v_exerciseId,
+            jt.alternativeExerciseId,
+            jt.priority,
+            NULLIF(TRIM(jt.note), '')
+        FROM JSON_TABLE(
+            p_alternatives,
+            '$[*]'
+            COLUMNS (
+                alternativeExerciseId INT PATH '$.alternativeExerciseId',
+                priority TINYINT PATH '$.priority',
+                note VARCHAR(255) PATH '$.note'
+            )
+        ) AS jt;
+
+    END IF;
+
     COMMIT;
 
     -- Trả exerciseId vừa tạo
@@ -2354,7 +2450,8 @@ CREATE PROCEDURE sp_UpdateExercise(
     IN p_difficulty VARCHAR(20),
     IN p_muscleGroups JSON,
     IN p_equipmentIds JSON,
-    IN p_media JSON
+    IN p_media JSON,
+    IN p_alternatives JSON
 )
 BEGIN
 
@@ -2393,7 +2490,81 @@ BEGIN
     END IF;
 
     -- =============================================
-    -- 2. Update Exercise
+    -- 2. Validate Alternatives nếu có
+    -- =============================================
+
+    IF p_alternatives IS NOT NULL
+       AND JSON_LENGTH(p_alternatives) > 0 THEN
+
+        -- Không được chọn chính bài tập hiện tại làm bài tập thay thế
+        IF EXISTS (
+            SELECT 1 FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            WHERE jt.alternativeExerciseId = p_exerciseId
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Không thể chọn chính bài tập hiện tại làm bài tập thay thế';
+        END IF;
+
+        -- Không được trùng alternativeExerciseId
+        IF EXISTS (
+            SELECT jt.alternativeExerciseId
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            GROUP BY jt.alternativeExerciseId
+            HAVING COUNT(*) > 1
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Danh sách bài tập thay thế bị trùng lặp';
+        END IF;
+
+        -- alternativeExerciseId phải tồn tại trong Exercises
+        IF EXISTS (
+            SELECT jt.alternativeExerciseId
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    alternativeExerciseId INT PATH '$.alternativeExerciseId'
+                )
+            ) AS jt
+            LEFT JOIN Exercises e ON e.exerciseId = jt.alternativeExerciseId
+            WHERE jt.alternativeExerciseId IS NULL OR e.exerciseId IS NULL
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Bài tập thay thế không tồn tại trong hệ thống';
+        END IF;
+
+        -- priority phải > 0
+        IF EXISTS (
+            SELECT 1
+            FROM JSON_TABLE(
+                p_alternatives,
+                '$[*]'
+                COLUMNS (
+                    priority INT PATH '$.priority'
+                )
+            ) AS jt
+            WHERE jt.priority IS NULL OR jt.priority <= 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Độ ưu tiên của bài tập thay thế phải lớn hơn 0';
+        END IF;
+
+    END IF;
+
+    -- =============================================
+    -- 3. Update Exercise
     -- =============================================
 
     UPDATE Exercises
@@ -2404,7 +2575,7 @@ BEGIN
     WHERE exerciseId = p_exerciseId;
 
     -- =============================================
-    -- 3. Xóa nhóm cơ cũ
+    -- 4. Xóa nhóm cơ cũ
     -- =============================================
 
     DELETE FROM ExerciseMuscleGroups
@@ -2435,7 +2606,7 @@ BEGIN
     END IF;
 
     -- =============================================
-    -- 4. Xóa thiết bị cũ
+    -- 5. Xóa thiết bị cũ
     -- =============================================
 
     DELETE FROM ExerciseEquipment
@@ -2463,7 +2634,7 @@ BEGIN
     END IF;
 
     -- =============================================
-    -- 5. Xóa Media cũ trong DB
+    -- 6. Xóa Media cũ trong DB
     -- =============================================
 
     DELETE FROM ExerciseMedia
@@ -2494,6 +2665,40 @@ BEGIN
                 publicId VARCHAR(255) PATH '$.publicId',
                 mediaType VARCHAR(20) PATH '$.mediaType',
                 sortOrder INT PATH '$.sortOrder'
+            )
+        ) AS jt;
+
+    END IF;
+
+    -- =============================================
+    -- 7. Đồng bộ bài tập thay thế
+    -- =============================================
+
+    DELETE FROM ExerciseAlternatives
+    WHERE exerciseId = p_exerciseId;
+
+    -- Thêm lại bài tập thay thế
+    IF p_alternatives IS NOT NULL
+       AND JSON_LENGTH(p_alternatives) > 0 THEN
+
+        INSERT INTO ExerciseAlternatives (
+            exerciseId,
+            alternativeExerciseId,
+            priority,
+            note
+        )
+        SELECT
+            p_exerciseId,
+            jt.alternativeExerciseId,
+            jt.priority,
+            NULLIF(TRIM(jt.note), '')
+        FROM JSON_TABLE(
+            p_alternatives,
+            '$[*]'
+            COLUMNS (
+                alternativeExerciseId INT PATH '$.alternativeExerciseId',
+                priority TINYINT PATH '$.priority',
+                note VARCHAR(255) PATH '$.note'
             )
         ) AS jt;
 

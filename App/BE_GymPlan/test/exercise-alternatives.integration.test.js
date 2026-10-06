@@ -51,7 +51,7 @@ test("exercise substitutions preserve sets, selection, slot boundaries and API v
     assert.deepEqual(alternatives.map(item => item.exerciseId), [alternativeId, otherId]);
     assert.equal(alternatives[0].name, fixture + "Alternative");
     assert.equal(alternatives[0].preview, "https://example.test/first.png");
-    for (const field of ["description", "difficulty", "priority", "note", "primaryMuscles", "secondaryMuscles", "equipment"]) assert.ok(field in alternatives[0]);
+    for (const field of ["description", "difficulty", "priority", "note", "primaryMuscles", "secondaryMuscles", "equipment", "videoUrl"]) assert.ok(field in alternatives[0]);
     assert.deepEqual(await api(`${prefix}/exercises/${originalId}/alternatives`), alternatives);
     assert.deepEqual(await api(`/api/exercises/${invalidId}/alternatives`), []);
     for (const id of ["abc", "0", "1.5", "999999999"]) await api(`/api/exercises/${id}/alternatives`, "GET", undefined, 400);

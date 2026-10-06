@@ -20,6 +20,18 @@ const colors = {
   orange: "#FF6D35",
 };
 
+const isToday = (dateString?: string | null) => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return false;
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+};
+
 function SectionHeader({ title, action, onPress }: { title: string; action?: string; onPress?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
@@ -123,6 +135,30 @@ export default function HomeScreen() {
   const target = Number(plan?.totalDays || profile?.sessionsPerWeek || 0);
   const completed = Number(plan?.completedThisWeek ?? history.length);
 
+  const todayCompletedSession = history.find((item) =>
+    isToday(item.endTime || item.startTime),
+  );
+  const hasCompletedToday = !!todayCompletedSession;
+  const hasActiveSession = !!state.data?.activeSession;
+  const canStartOrContinue = hasActiveSession || (!hasCompletedToday && !!today);
+  const isButtonDisabled = !canStartOrContinue || workout.busy;
+
+  let buttonLabel = "START WORKOUT";
+  let buttonIcon = "▶";
+
+  if (workout.busy) {
+    buttonLabel = "ĐANG MỞ…";
+  } else if (hasActiveSession) {
+    buttonLabel = "TIẾP TỤC BUỔI TẬP";
+    buttonIcon = "▶";
+  } else if (hasCompletedToday) {
+    buttonLabel = "ĐÃ HOÀN THÀNH BUỔI TẬP HÔM NAY";
+    buttonIcon = "✓";
+  } else if (!today) {
+    buttonLabel = "HÔM NAY LÀ NGÀY NGHỈ";
+    buttonIcon = "";
+  }
+
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>
       <ScrollView
@@ -162,20 +198,56 @@ export default function HomeScreen() {
             </View>
             <View style={styles.workoutInfo}>
               <View style={styles.pushTitleRow}>
-                <Text style={styles.pushTitle}>{today?.dayName || "Hôm nay không có buổi tập"}</Text>
+                <Text style={styles.pushTitle}>
+                  {today?.dayName || (hasCompletedToday ? todayCompletedSession?.dayName : null) || "Hôm nay không có buổi tập"}
+                </Text>
                 <Text style={styles.levelBadge}>{levelLabel(plan?.level)}</Text>
               </View>
               <Text style={styles.workoutDetails}>
-                {today ? `${today.totalExercises} bài tập • ${today.totalSets} sets` : plan ? "Ngày nghỉ" : "Chưa có lịch tập"}
+                {hasCompletedToday
+                  ? `${today?.totalExercises ?? todayCompletedSession?.totalExercises ?? 0} bài tập • Đã hoàn thành`
+                  : today
+                    ? `${today.totalExercises} bài tập • ${today.totalSets} sets`
+                    : plan
+                      ? "Ngày nghỉ"
+                      : "Chưa có lịch tập"}
               </Text>
               <View style={styles.progressRow}>
                 {Array.from({ length: target }, (_, index) => (
                   <View key={index} style={[styles.progressSegment, index < completed && styles.progressActive]} />
                 ))}
               </View>
-              <Pressable style={styles.startButton} disabled={(!today && !state.data?.activeSession) || workout.busy} onPress={() => workout.start(today?.dayId)}>
-                <Text style={styles.startIcon}>▶</Text>
-                <Text style={styles.startText}>{workout.busy ? "ĐANG MỞ…" : state.data?.activeSession ? "TIẾP TỤC BUỔI TẬP" : "START WORKOUT"}</Text>
+              <Pressable
+                style={[
+                  styles.startButton,
+                  hasCompletedToday && !hasActiveSession && styles.completedButton,
+                  !today && !hasCompletedToday && !hasActiveSession && styles.restButton,
+                ]}
+                disabled={isButtonDisabled}
+                onPress={() => {
+                  if (isButtonDisabled) return;
+                  workout.start(today?.dayId);
+                }}
+              >
+                {buttonIcon ? (
+                  <Text
+                    style={[
+                      styles.startIcon,
+                      hasCompletedToday && !hasActiveSession && styles.completedIcon,
+                    ]}
+                  >
+                    {buttonIcon}
+                  </Text>
+                ) : null}
+                <Text
+                  style={[
+                    styles.startText,
+                    hasCompletedToday && !hasActiveSession && styles.completedText,
+                    !today && !hasCompletedToday && !hasActiveSession && styles.restText,
+                  ]}
+                >
+                  {buttonLabel}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -202,15 +274,35 @@ export default function HomeScreen() {
 
           <SectionHeader
             title="DANH SÁCH BÀI TẬP HÔM NAY"
-            action={today ? `${today.totalExercises} bài • ${today.totalSets} sets` : ""}
+            action={
+              hasCompletedToday && !hasActiveSession
+                ? "Đã hoàn thành ✓"
+                : today
+                  ? `${today.totalExercises} bài • ${today.totalSets} sets`
+                  : ""
+            }
           />
           <View style={styles.exerciseList}>
             {today?.exercises.map((exercise, index) => (
-              <ExerciseRow key={exercise.configId} number={String(index + 1).padStart(2, "0")}
-                name={exercise.exerciseName} detail={`${exercise.sets} sets • ${exercise.reps} reps`}
-                status={`Nghỉ ${exercise.restTime}s`} sets={exercise.sets} />
+              <ExerciseRow
+                key={exercise.configId}
+                number={String(index + 1).padStart(2, "0")}
+                name={exercise.exerciseName}
+                detail={`${exercise.sets} sets • ${exercise.reps} reps`}
+                status={hasCompletedToday && !hasActiveSession ? "Đã hoàn thành" : `Nghỉ ${exercise.restTime}s`}
+                sets={exercise.sets}
+                completed={hasCompletedToday && !hasActiveSession}
+              />
             ))}
-            {!today?.exercises.length && <Text style={styles.exerciseDetail}>{today ? "Chưa có bài tập" : "Hôm nay không có buổi tập"}</Text>}
+            {!today?.exercises.length && (
+              <Text style={styles.exerciseDetail}>
+                {hasCompletedToday && !hasActiveSession
+                  ? `Đã hoàn thành buổi tập ${todayCompletedSession?.dayName || ""} hôm nay.`
+                  : today
+                    ? "Chưa có bài tập"
+                    : "Hôm nay không có buổi tập"}
+              </Text>
+            )}
           </View>
 
           <SectionHeader title="LỐI TẮT NHANH" />
@@ -427,6 +519,33 @@ const styles = StyleSheet.create({
   },
   startIcon: { color: "#0D170B", fontSize: 11 },
   startText: { color: "#0D170B", fontSize: 11, fontWeight: "900" },
+  completedButton: {
+    backgroundColor: "#132216",
+    borderWidth: 1,
+    borderColor: "#2B4732",
+  },
+  completedIcon: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  completedText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  restButton: {
+    backgroundColor: "#161B1D",
+    borderWidth: 1,
+    borderColor: "#252E30",
+  },
+  restText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

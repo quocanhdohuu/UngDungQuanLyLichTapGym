@@ -16,9 +16,16 @@ const normalizePayload = (body) => ({
   muscleGroups: Array.isArray(body.muscleGroups) ? body.muscleGroups : [],
   equipmentIds: Array.isArray(body.equipmentIds) ? body.equipmentIds : [],
   media: Array.isArray(body.media) ? body.media : [],
+  alternatives: Array.isArray(body.alternatives)
+    ? body.alternatives.map((item) => ({
+        alternativeExerciseId: Number(item.alternativeExerciseId),
+        priority: Number(item.priority || 1),
+        note: typeof item.note === "string" ? item.note.trim() : (item.note ?? null),
+      }))
+    : [],
 });
 
-const validatePayload = async (payload) => {
+const validatePayload = async (payload, currentExerciseId = null) => {
   if (!payload.name) return "Tên bài tập không được để trống";
   if (!VALID_DIFFICULTIES.has(payload.difficulty)) return "Độ khó không hợp lệ";
 
@@ -84,6 +91,41 @@ const validatePayload = async (payload) => {
       return "Thiết bị không tồn tại";
   }
 
+  if (Array.isArray(payload.alternatives) && payload.alternatives.length > 0) {
+    const altIds = payload.alternatives.map((item) => Number(item.alternativeExerciseId));
+
+    if (altIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      return "Bài tập thay thế không hợp lệ";
+    }
+
+    if (new Set(altIds).size !== altIds.length) {
+      return "Danh sách bài tập thay thế bị trùng lặp";
+    }
+
+    if (currentExerciseId && altIds.includes(Number(currentExerciseId))) {
+      return "Không được chọn chính bài tập hiện tại làm bài tập thay thế";
+    }
+
+    for (const alt of payload.alternatives) {
+      const priority = Number(alt.priority);
+      if (!Number.isInteger(priority) || priority <= 0) {
+        return "Độ ưu tiên bài tập thay thế phải lớn hơn 0";
+      }
+      if (alt.note && typeof alt.note === "string" && alt.note.length > 255) {
+        return "Ghi chú bài tập thay thế không được vượt quá 255 ký tự";
+      }
+    }
+
+    const [existingExercises] = await db
+      .promise()
+      .query("SELECT exerciseId FROM `exercises` WHERE exerciseId IN (?)", [
+        altIds,
+      ]);
+    if (existingExercises.length !== new Set(altIds).size) {
+      return "Bài tập thay thế không tồn tại trong hệ thống";
+    }
+  }
+
   return null;
 };
 
@@ -140,9 +182,10 @@ const ExercisesController = {
           data: result,
         });
     } catch (error) {
+      const isCustomError = error.sqlState === "45000";
       return res
-        .status(500)
-        .json({ message: "Thêm dữ liệu thất bại", error: error.message });
+        .status(isCustomError ? 400 : 500)
+        .json({ message: isCustomError ? error.sqlMessage : "Thêm dữ liệu thất bại", error: error.message });
     }
   },
 
@@ -151,7 +194,7 @@ const ExercisesController = {
 
     try {
       const data = normalizePayload(req.body);
-      const validationError = await validatePayload(data);
+      const validationError = await validatePayload(data, id);
       if (validationError)
         return res.status(400).json({ message: validationError });
 
@@ -176,9 +219,10 @@ const ExercisesController = {
         data: result,
       });
     } catch (error) {
+      const isCustomError = error.sqlState === "45000";
       return res
-        .status(500)
-        .json({ message: "Cập nhật thất bại", error: error.message });
+        .status(isCustomError ? 400 : 500)
+        .json({ message: isCustomError ? error.sqlMessage : "Cập nhật thất bại", error: error.message });
     }
   },
 
