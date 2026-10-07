@@ -1,5 +1,15 @@
 import { AdminIcon } from "./AdminControls";
+import { getAdminAuth } from "../../utils/auth";
+
 const AdminHeader = () => {
+  const admin = getAdminAuth();
+  const displayName = admin?.username
+    ? `Admin ${admin.username}`
+    : "Admin Quoc Anh";
+  const initials = admin?.username
+    ? admin.username.slice(0, 2).toUpperCase()
+    : "QA";
+
   return (
     <header className="admin-header">
       <div className="header-title-wrap">
@@ -29,9 +39,9 @@ const AdminHeader = () => {
         </button>
 
         <div className="header-user-block">
-          <div className="user-avatar-small">QA</div>
+          <div className="user-avatar-small">{initials}</div>
           <div className="user-meta">
-            <span className="user-name">Admin Quoc Anh</span>
+            <span className="user-name">{displayName}</span>
           </div>
           <span className="dropdown-caret">▾</span>
         </div>

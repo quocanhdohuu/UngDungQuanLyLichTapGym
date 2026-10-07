@@ -1,5 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import logo from "../../image/logo.png";
+import { clearAdminAuth } from "../../utils/auth";
 
 const navItems = [
   { to: "/admin/dashboard", label: "Trang chủ", icon: "dashboard" },
@@ -81,6 +82,13 @@ function Icon({ name, className = "" }) {
 }
 
 function AdminSidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearAdminAuth();
+    navigate("/admin/login", { replace: true });
+  };
+
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-brand">
@@ -119,7 +127,11 @@ function AdminSidebar() {
           <span>Trợ giúp &amp; Tài liệu</span>
         </button>
 
-        <button type="button" className="sidebar-link-button danger">
+        <button
+          type="button"
+          className="sidebar-link-button danger"
+          onClick={handleLogout}
+        >
           <Icon name="logout" className="link-icon" />
           <span>Đăng xuất</span>
         </button>
