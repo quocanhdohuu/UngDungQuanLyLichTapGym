@@ -2715,8 +2715,8 @@ END $$
 DELIMITER ;
 
 -- 7. Load GymUser --
+DROP PROCEDURE IF EXISTS sp_GetAllGymUsers;
 DELIMITER $$
-
 CREATE PROCEDURE sp_GetAllGymUsers()
 BEGIN
 
@@ -2738,12 +2738,29 @@ BEGIN
         a.status AS accountStatus,
         gu.status AS profileStatus,
 
-        a.createdAt
+        a.createdAt,
+        wp.planId AS activePlanId,
+        wp.title AS activePlanTitle,
+        CASE
+            WHEN wp.planId IS NULL THEN NULL
+            WHEN wp.isTemplate = TRUE THEN 'TEMPLATE'
+            ELSE 'PERSONAL'
+        END AS activePlanType
 
     FROM Accounts a
 
     INNER JOIN GymUsers gu
         ON a.accountId = gu.accountId
+
+    LEFT JOIN WorkoutPlans wp
+        ON wp.planId = (
+            SELECT guwp.planId
+            FROM GymUserWorkoutPlans guwp
+            WHERE guwp.profileId = gu.profileId
+              AND guwp.status = 'ACTIVE'
+            ORDER BY guwp.joinedAt DESC, guwp.planId DESC
+            LIMIT 1
+        )
 
     WHERE a.role = 'GYM_USER'
 

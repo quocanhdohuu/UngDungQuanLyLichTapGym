@@ -353,7 +353,14 @@ body {
 /* Page-specific layouts; visual primitives live in admin-ui.css. */
 
 .user-table {
-  min-width: 880px;
+  min-width: 1280px;
+}
+
+.user-active-plan-title {
+  min-width: 200px;
+  max-width: 280px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .member-cell {

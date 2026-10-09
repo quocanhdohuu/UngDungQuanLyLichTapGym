@@ -377,31 +377,34 @@ function UsersPage() {
               <th>TRÌNH ĐỘ</th>
               <th>TẦN SUẤT</th>
               <th>TRẠNG THÁI</th>
+              <th>LỊCH TẬP ĐANG SỬ DỤNG</th>
+              <th>LOẠI LỊCH TẬP</th>
               <th>THAO TÁC</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="admin-empty">
+                <td colSpan="9" className="admin-empty">
                   Đang tải danh sách người dùng...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan="7" className="admin-empty">
+                <td colSpan="9" className="admin-empty">
                   {error}
                 </td>
               </tr>
             ) : pageUsers.length === 0 ? (
               <tr>
-                <td colSpan="7" className="admin-empty">
+                <td colSpan="9" className="admin-empty">
                   Không có người dùng phù hợp.
                 </td>
               </tr>
             ) : (
               pageUsers.map((user, index) => {
                 const status = getStatus(user);
+                const hasActivePlan = user.activePlanId != null;
                 return (
                   <tr key={user.profileId || user.accountId}>
                     <td className="stt-cell">{startIndex + index + 1}</td>
@@ -438,6 +441,22 @@ function UsersPage() {
                       >
                         {displayValue(status)}
                       </span>
+                    </td>
+                    <td>
+                      <div className="user-active-plan-title">
+                        {hasActivePlan ? user.activePlanTitle : "Chưa có lịch tập"}
+                      </div>
+                    </td>
+                    <td>
+                      {hasActivePlan && user.activePlanType === "TEMPLATE" ? (
+                        <span className="admin-badge admin-badge--success">
+                          LỊCH MẪU
+                        </span>
+                      ) : hasActivePlan && user.activePlanType === "PERSONAL" ? (
+                        <span className="admin-badge">LỊCH CÁ NHÂN</span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td>
                       <button

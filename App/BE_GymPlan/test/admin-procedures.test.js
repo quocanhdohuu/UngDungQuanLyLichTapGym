@@ -60,6 +60,29 @@ const user = {
 };
 const plan = { planId: 41, title: "Test Plan", description: "Description", creatorId: 7, isTemplate: true, level: "BEGINNER", durationWeeks: 12 };
 
+test("user list and detail preserve active plan fields and the existing response shape", async () => {
+  const rows = [
+    { ...user, activePlanId: 41, activePlanTitle: "Template plan", activePlanType: "TEMPLATE" },
+    { ...user, profileId: 32, activePlanId: 42, activePlanTitle: "Personal plan", activePlanType: "PERSONAL" },
+    { ...user, profileId: 33, activePlanId: null, activePlanTitle: null, activePlanType: null },
+  ];
+  let calls = 0;
+  mock.method(db, "query", (sql, callback) => {
+    assert.equal(sql, "CALL sp_GetAllGymUsers()");
+    calls += 1;
+    callback(null, [rows, { affectedRows: 0 }]);
+  });
+  const response = await request("/api/users");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), rows);
+  for (const row of rows) {
+    const detail = await request(`/api/users/${row.profileId}`);
+    assert.equal(detail.status, 200);
+    assert.deepEqual(await detail.json(), row);
+  }
+  assert.equal(calls, 4);
+});
+
 const modelCases = [
   ["sp_AddGymUser", user, () => promisify(Users.insert)(user)],
   ["sp_UpdateGymUser", user, () => promisify(Users.update)(user, user.profileId)],
