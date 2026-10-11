@@ -1,0 +1,6 @@
+{
+  "mode": "CHECK: connection-local temporary SELECT staging and EXPLAIN INSERT; no INSERT executed",
+  "committed": false,
+  "explainedInserts": 46,
+  "temporaryTables": 15
+}

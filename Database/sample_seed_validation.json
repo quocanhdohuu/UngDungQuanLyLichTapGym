@@ -1,0 +1,7 @@
+{
+  "mode": "offline validation; no INSERT executed",
+  "checks": 28220,
+  "faultInjectionCases": 6,
+  "batchReplay": "first=insert, second=skip, partial/collision=reject",
+  "limitations": "MySQL write constraints and rollback-on-write-error are not executed until approval."
+}

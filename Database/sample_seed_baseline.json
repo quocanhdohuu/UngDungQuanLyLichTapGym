@@ -1,0 +1,74 @@
+[
+  {
+    "table": "accounts",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`accountId`,`username`,`email`,`role`,`status`,`createdAt`) AS CHAR),256) ORDER BY `accountId`,`username`,`email`,`role`,`status`,`createdAt` SEPARATOR ''),''),256) signature FROM `accounts`",
+    "n": 23,
+    "signature": "0f88e7f05efc9f6862d6caddcc879d5e3956b874bbdd67f13073756be0a3d1ad"
+  },
+  {
+    "table": "gymusers",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`profileId`,`accountId`,`fullName`,`gender`,`level`,`goal`,`sessionsPerWeek`,`status`) AS CHAR),256) ORDER BY `profileId`,`accountId`,`fullName`,`gender`,`level`,`goal`,`sessionsPerWeek`,`status` SEPARATOR ''),''),256) signature FROM `gymusers`",
+    "n": 22,
+    "signature": "0ff416c48fd568dbc65933b7e830184f963fcf9df85d4f6ef19c3f14718c78fd"
+  },
+  {
+    "table": "workoutplans",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`planId`,`title`,`description`,`creatorId`,`isTemplate`,`level`,`durationWeeks`,`createdAt`) AS CHAR),256) ORDER BY `planId`,`title`,`description`,`creatorId`,`isTemplate`,`level`,`durationWeeks`,`createdAt` SEPARATOR ''),''),256) signature FROM `workoutplans`",
+    "n": 18,
+    "signature": "0f87f81eb0b5209b8da15959c8e9534a9e989b2b35038af8f9be9e409dc630e7"
+  },
+  {
+    "table": "workoutdays",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`dayId`,`planId`,`dayName`,`order`,`weekDay`) AS CHAR),256) ORDER BY `dayId`,`planId`,`dayName`,`order`,`weekDay` SEPARATOR ''),''),256) signature FROM `workoutdays`",
+    "n": 73,
+    "signature": "bb70a05674dc39128cb98df8227f0101e3f31b3ff54f6ea6fb3f0938394a2d4c"
+  },
+  {
+    "table": "exerciseconfigs",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`configId`,`exerciseId`,`dayId`,`sets`,`reps`,`restTime`,`order`) AS CHAR),256) ORDER BY `configId`,`exerciseId`,`dayId`,`sets`,`reps`,`restTime`,`order` SEPARATOR ''),''),256) signature FROM `exerciseconfigs`",
+    "n": 364,
+    "signature": "fa1ad95d154fc23bae831abc3f42ad48bbd26e513364e3827516b2c9f1414994"
+  },
+  {
+    "table": "exercises",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`exerciseId`,`name`,`description`,`difficulty`) AS CHAR),256) ORDER BY `exerciseId`,`name`,`description`,`difficulty` SEPARATOR ''),''),256) signature FROM `exercises`",
+    "n": 57,
+    "signature": "7d70abb4adfeb4754a85e6982a8259b8082f7211a6b8566bced51cb8310654bf"
+  },
+  {
+    "table": "exercisealternatives",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`alternativeId`,`exerciseId`,`alternativeExerciseId`,`priority`,`note`) AS CHAR),256) ORDER BY `alternativeId`,`exerciseId`,`alternativeExerciseId`,`priority`,`note` SEPARATOR ''),''),256) signature FROM `exercisealternatives`",
+    "n": 64,
+    "signature": "b133bb54a9c8ec927697e8ae91bc2e372476c5d122f68172c4149dbdf236df0c"
+  },
+  {
+    "table": "gymuserworkoutplans",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`profileId`,`planId`,`joinedAt`,`startedAt`,`status`) AS CHAR),256) ORDER BY `profileId`,`planId`,`joinedAt`,`startedAt`,`status` SEPARATOR ''),''),256) signature FROM `gymuserworkoutplans`",
+    "n": 11,
+    "signature": "91832b8425cb2089f61af749264d16a27444c53c95a78de39df30539567ebf9d"
+  },
+  {
+    "table": "workoutsessions",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`workoutSessionId`,`profileId`,`dayId`,`startTime`,`endTime`,`totalDuration`,`status`) AS CHAR),256) ORDER BY `workoutSessionId`,`profileId`,`dayId`,`startTime`,`endTime`,`totalDuration`,`status` SEPARATOR ''),''),256) signature FROM `workoutsessions`",
+    "n": 224,
+    "signature": "f219b15207ffb04cbf36b80c2de68c376942bb8af86c96eee7f56b22a1ab0e59"
+  },
+  {
+    "table": "performedexercises",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`performedExerciseId`,`workoutSessionId`,`exerciseId`,`originalExerciseId`,`isSubstituted`,`isActive`,`isCompleted`) AS CHAR),256) ORDER BY `performedExerciseId`,`workoutSessionId`,`exerciseId`,`originalExerciseId`,`isSubstituted`,`isActive`,`isCompleted` SEPARATOR ''),''),256) signature FROM `performedexercises`",
+    "n": 959,
+    "signature": "c332c8e574b54deb06fa468ed43016b03a61f950eaa63a051123d225913efdd0"
+  },
+  {
+    "table": "exercisesets",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`setId`,`performedExerciseId`,`setNumber`,`weight`,`reps`,`preValue`) AS CHAR),256) ORDER BY `setId`,`performedExerciseId`,`setNumber`,`weight`,`reps`,`preValue` SEPARATOR ''),''),256) signature FROM `exercisesets`",
+    "n": 3108,
+    "signature": "d17ea8deb069b4a28e821328ca9f9efc8e222d8f4aabf270b976b50226b49350"
+  },
+  {
+    "table": "bodymetrics",
+    "sql": "SELECT COUNT(*) n, SHA2(COALESCE(GROUP_CONCAT(SHA2(CAST(JSON_ARRAY(`metricId`,`profileId`,`height`,`weight`,`recordedAt`) AS CHAR),256) ORDER BY `metricId`,`profileId`,`height`,`weight`,`recordedAt` SEPARATOR ''),''),256) signature FROM `bodymetrics`",
+    "n": 81,
+    "signature": "5eca76616764e49d36c605315506ead5baec26dcfe63c5194e1740782c24cce9"
+  }
+]
