@@ -53,6 +53,20 @@ test("mobile workout flow against local MySQL with isolated fixtures", {
     assert.equal(storedPlan.isTemplate, 0);
     const activePlan = await api(`${profileId}/active-plan`);
     assert.equal(activePlan.planId, plan.planId);
+
+    // Two separately named Monday sessions must not create a plan or replace the active one.
+    const plansBeforeDuplicate = await query("SELECT planId FROM WorkoutPlans WHERE creatorId = ? ORDER BY planId", [accountIds[0]]);
+    const duplicateResponse = await fetch(`http://127.0.0.1:${server.address().port}/api/user/${profileId}/plans`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...planBody, days: [
+        { ...planBody.days[0], dayName: "Monday A", weekDay: 1 },
+        { ...planBody.days[0], dayName: "Monday B", weekDay: 1 },
+      ] }),
+    });
+    assert.equal(duplicateResponse.status, 400);
+    assert.deepEqual(await duplicateResponse.json(), { message: "Các ngày tập không được trùng thứ" });
+    assert.deepEqual(await query("SELECT planId FROM WorkoutPlans WHERE creatorId = ? ORDER BY planId", [accountIds[0]]), plansBeforeDuplicate);
+    assert.equal((await api(`${profileId}/active-plan`)).planId, plan.planId);
     const today = await api(`${profileId}/today-workout`);
     assert.equal(today.exercises[0].exerciseId, exerciseId);
     const dayId = today.dayId;

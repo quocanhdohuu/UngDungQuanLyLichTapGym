@@ -1,31 +1,22 @@
 const db = require("../common/db");
+const { resolveDateRange } = require("../utils/dashboardDateRange");
 
 const Dashboard = {
-  getSummary: async () => {
-    const [result] = await db.promise().query("CALL sp_GetDashboardSummary()");
+  getSummary: async (period = resolveDateRange()) => {
+    const [result] = await db.promise().query("CALL sp_GetDashboardSummary(?, ?)", [period.startDate, period.endDate]);
     return result[0]?.[0] || null;
   },
 
-  getUserGrowth: async (months = 6) => {
+  getUserGrowth: async (period = resolveDateRange()) => {
     const [result] = await db
       .promise()
-      .query("CALL sp_GetDashboardUserGrowth(?)", [months]);
+      .query("CALL sp_GetDashboardUserGrowth(?, ?, ?)", [period.startDate, period.endDate, period.groupBy]);
     return result[0] || [];
   },
 
-  getWorkoutActivity: async () => {
-    try {
-      const [result] = await db
-        .promise()
-        .query("CALL sp_GetDashboardWorkoutActivity()");
-      return result[0] || [];
-    } catch (error) {
-      const message = error?.sqlMessage || error?.message || "";
-      if (/doesn't exist|not exist|routine.*not found/i.test(message)) {
-        return [];
-      }
-      throw error;
-    }
+  getWorkoutActivity: async (period = resolveDateRange()) => {
+    const [result] = await db.promise().query("CALL sp_GetDashboardWorkoutActivity(?, ?)", [period.startDate, period.endDate]);
+    return result[0] || [];
   },
 
   getExerciseStatistics: async () => {
@@ -35,17 +26,17 @@ const Dashboard = {
     return result[0] || [];
   },
 
-  getRecentUsers: async (limit = 5) => {
+  getRecentUsers: async (limit = 5, period = resolveDateRange()) => {
     const [result] = await db
       .promise()
-      .query("CALL sp_GetDashboardRecentUsers(?)", [limit]);
+      .query("CALL sp_GetDashboardRecentUsers(?, ?, ?)", [limit, period.startDate, period.endDate]);
     return result[0] || [];
   },
 
-  getRecentWorkoutTemplates: async (limit = 5) => {
+  getRecentWorkoutTemplates: async (limit = 5, period = resolveDateRange()) => {
     const [result] = await db
       .promise()
-      .query("CALL sp_GetDashboardRecentWorkoutTemplates(?)", [limit]);
+      .query("CALL sp_GetDashboardRecentWorkoutTemplates(?, ?, ?)", [limit, period.startDate, period.endDate]);
     return result[0] || [];
   },
 };

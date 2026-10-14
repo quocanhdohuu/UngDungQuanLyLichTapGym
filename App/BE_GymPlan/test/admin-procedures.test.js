@@ -9,9 +9,11 @@ const Users = require("../src/models/gymusers.model");
 const Plans = require("../src/models/workoutplans.model");
 const Days = require("../src/models/workoutdays.model");
 const Dashboard = require("../src/models/dashboard.model");
+const { resolveDateRange } = require("../src/utils/dashboardDateRange");
 
 // Contract fixtures only: these tests never write to the application database.
-const sqlSource = readFileSync(resolve(__dirname, "../../../Database/MySQL_GymPlan.sql"), "utf8");
+const sqlSource = readFileSync(resolve(__dirname, "../../../Database/MySQL_GymPlan.sql"), "utf8")
+  + readFileSync(resolve(__dirname, "../../../Database/dashboard_time_filter.sql"), "utf8");
 const parametersOf = (name) => {
   const definitions = [...sqlSource.matchAll(new RegExp(`CREATE\\s+PROCEDURE\\s+${name}\\s*\\(([\\s\\S]*?)\\)\\s*BEGIN`, "gi"))];
   assert.ok(definitions.length, `Missing ${name} in SQL file`);
@@ -92,7 +94,7 @@ const modelCases = [
   ["sp_UpdateWorkoutPlan", plan, () => Plans.updateWithProcedure(plan.planId, plan)],
   ["sp_AddWorkoutDay", { planId: 41, dayName: "Day", weekDay: 7 }, () => Days.addWithProcedure(41, "Day", 7)],
   ["sp_UpdateWorkoutDay", { dayId: 51, dayName: "Day", weekDay: null }, () => Days.updateWithProcedure(51, "Day", null)],
-  ["sp_GetDashboardRecentWorkoutTemplates", { limit: 5 }, () => Dashboard.getRecentWorkoutTemplates(5)],
+  ["sp_GetDashboardRecentWorkoutTemplates", { limit: 5, ...resolveDateRange() }, () => Dashboard.getRecentWorkoutTemplates(5)],
 ];
 for (const [name, values, call] of modelCases) {
   test(`${name}: CALL matches latest SQL parameter count, names and order`, async () => {
@@ -235,7 +237,7 @@ test("template list and dashboard responses keep durationWeeks and existing fiel
   check();
   mock.restoreAll();
   for (const [query, limit] of [["", null], ["?limit=", null], ["?limit=0", 0], ["?limit=-1", -1], ["?limit=5", 5]]) {
-    check = procedureMock("sp_GetDashboardRecentWorkoutTemplates", { limit }, [rows]);
+    check = procedureMock("sp_GetDashboardRecentWorkoutTemplates", { limit, ...resolveDateRange() }, [rows]);
     const response = await request(`/api/dashboard/recent-workout-templates${query}`);
     assert.equal(response.status, 200);
     assert.deepEqual((await response.json()).data, rows);

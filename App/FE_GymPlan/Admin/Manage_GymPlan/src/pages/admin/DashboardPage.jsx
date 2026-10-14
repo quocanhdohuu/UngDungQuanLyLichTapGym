@@ -1,5 +1,6 @@
 import AdminPageHeader from "../../components/admin/AdminPageHeader";
-import { useEffect, useMemo, useState } from "react";
+import AdminDateRangeFilter from "../../components/admin/AdminDateRangeFilter";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = "http://localhost:3000/api/dashboard";
@@ -15,14 +16,20 @@ const getErrorMessage = async (response) => {
   }
 };
 
-const request = async (path) => {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+// Share only in-flight GETs, including React StrictMode's mount cycle.
+const pendingRequests = new Map();
+const request = (path) => {
+  if (!pendingRequests.has(path)) {
+    const promise = fetch(`${API_BASE_URL}${path}`).then(async (response) => {
+      if (!response.ok) throw new Error(await getErrorMessage(response));
+      return response.json();
+    }).finally(() => pendingRequests.delete(path));
+    pendingRequests.set(path, promise);
   }
-  const payload = await response.json();
-  return payload.data ?? payload;
+  return pendingRequests.get(path);
 };
+
+const formatDate = (date) => date.split("-").reverse().join("/");
 
 const getDifficultyTone = (difficulty) => {
   switch (difficulty) {
@@ -47,6 +54,14 @@ const DashboardPage = () => {
   const [recentTemplates, setRecentTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState({ range: "THIS_MONTH" });
+  const [displayedPeriod, setDisplayedPeriod] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const exerciseRequest = useRef(null);
+
+  const applyFilter = (next) => {
+    setFilter((current) => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -56,6 +71,13 @@ const DashboardPage = () => {
       setError("");
 
       try {
+        const query = new URLSearchParams(filter).toString();
+        if (!exerciseRequest.current) {
+          exerciseRequest.current = request("/exercise-statistics").catch((requestError) => {
+            exerciseRequest.current = null;
+            throw requestError;
+          });
+        }
         const [
           summaryData,
           growthData,
@@ -64,22 +86,28 @@ const DashboardPage = () => {
           usersData,
           templatesData,
         ] = await Promise.all([
-          request("/summary"),
-          request("/user-growth?months=6"),
-          request("/workout-activity"),
-          request("/exercise-statistics"),
-          request("/recent-users?limit=5"),
-          request("/recent-workout-templates?limit=5"),
+          request(`/summary?${query}`),
+          request(`/user-growth?${query}`),
+          request(`/workout-activity?${query}`),
+          exerciseRequest.current,
+          request(`/recent-users?limit=5&${query}`),
+          request(`/recent-workout-templates?limit=5&${query}`),
         ]);
 
         if (!mounted) return;
 
-        setSummary(summaryData || null);
-        setUserGrowth(Array.isArray(growthData) ? growthData : []);
-        setWorkoutActivity(Array.isArray(activityData) ? activityData : []);
-        setExerciseStats(Array.isArray(statisticsData) ? statisticsData : []);
-        setRecentUsers(Array.isArray(usersData) ? usersData : []);
-        setRecentTemplates(Array.isArray(templatesData) ? templatesData : []);
+        // A preset can cross midnight while requests run; never mix two periods.
+        if ([growthData, activityData, usersData, templatesData].some(
+          (payload) => JSON.stringify(payload.period) !== JSON.stringify(summaryData.period),
+        )) throw new Error("Khoảng thời gian vừa thay đổi. Vui lòng thử lại.");
+
+        setSummary(summaryData.data || null);
+        setUserGrowth(Array.isArray(growthData.data) ? growthData.data : []);
+        setWorkoutActivity(Array.isArray(activityData.data) ? activityData.data : []);
+        setExerciseStats(Array.isArray(statisticsData.data) ? statisticsData.data : []);
+        setRecentUsers(Array.isArray(usersData.data) ? usersData.data : []);
+        setRecentTemplates(Array.isArray(templatesData.data) ? templatesData.data : []);
+        setDisplayedPeriod(summaryData.period);
       } catch (requestError) {
         if (mounted) {
           setError(requestError.message || "Không thể tải dữ liệu dashboard.");
@@ -96,11 +124,10 @@ const DashboardPage = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [filter, retry]);
 
   const chartMax = useMemo(() => {
-    const values = userGrowth.map((item) => Number(item.totalUsers || 0));
-    return Math.max(...values, 1);
+    return userGrowth.reduce((max, item) => Math.max(max, Number(item.totalUsers || 0)), 1);
   }, [userGrowth]);
 
   const totalExerciseStats = useMemo(
@@ -124,36 +151,39 @@ const DashboardPage = () => {
     />
   );
 
-  if (loading || error) {
-    return (
-      <div className="admin-page dashboard-page">
-        {pageHeader}
-        <div className="admin-card">
-          <p className={error ? "admin-form-error" : "admin-empty"}>
-            {error || "Đang tải dữ liệu..."}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const periodLabel = !displayedPeriod ? "" : displayedPeriod.range === "ALL"
+    ? "Toàn bộ thời gian"
+    : `${formatDate(displayedPeriod.startDate)} – ${formatDate(displayedPeriod.endDate)}`;
 
   return (
     <div className="admin-page dashboard-page">
       {pageHeader}
+      <AdminDateRangeFilter value={filter} onChange={applyFilter} />
+      <div className="dashboard-load-status" aria-live="polite" aria-atomic="true">
+        {displayedPeriod && <p className="dashboard-meta">Dữ liệu đang hiển thị: {periodLabel} (UTC+7).</p>}
+        {loading && <p role="status" className="dashboard-meta">Đang tải dữ liệu…</p>}
+        {error && <div role="alert">
+          <p className="admin-form-error">{error}{summary ? " Dữ liệu kỳ trước vẫn được giữ lại." : ""}</p>
+          <button type="button" className="admin-button admin-button--secondary" onClick={() => setRetry((value) => value + 1)}>Thử lại</button>
+        </div>}
+      </div>
+      {summary && <>
       <div className="dashboard-kpis">
         {[
           {
             label: "Tổng người dùng",
+            scope: "Toàn hệ thống",
             value: formatNumber(summary?.totalUsers),
             accent: "var(--green)",
           },
           {
             label: "Tổng bài tập",
+            scope: "Toàn hệ thống",
             value: formatNumber(summary?.totalExercises),
             accent: "var(--admin-info)",
           },
           {
-            label: "Lịch tập mẫu",
+            label: "Lịch tập mẫu tạo trong kỳ",
             value: formatNumber(summary?.totalWorkoutTemplates),
             accent: "var(--orange)",
           },
@@ -163,7 +193,7 @@ const DashboardPage = () => {
             accent: "var(--red)",
           },
           {
-            label: "Buổi tập tháng này",
+            label: "Buổi tập trong kỳ",
             value: formatNumber(summary?.workoutSessionsThisMonth),
             accent: "var(--admin-purple)",
           },
@@ -176,6 +206,7 @@ const DashboardPage = () => {
             >
               {item.value}
             </div>
+            <small className="dashboard-meta">{item.scope || periodLabel}</small>
           </div>
         ))}
       </div>
@@ -186,7 +217,7 @@ const DashboardPage = () => {
             <div className="admin-card-icon">↗</div>
             <div>
               <h2>Tăng trưởng người dùng</h2>
-              <p>Đăng ký theo tháng</p>
+              <p>Đăng ký theo {displayedPeriod?.groupBy === "DAY" ? "ngày" : "tháng"}</p>
             </div>
           </div>
           <div className="dashboard-chart">
@@ -200,10 +231,10 @@ const DashboardPage = () => {
                     className="dashboard-chart-bar"
                     title={`${item.monthLabel}: ${item.totalUsers} người dùng`}
                     style={{
-                      height: `${Math.max((Number(item.totalUsers || 0) / chartMax) * 120, 10)}px`,
+                      height: `${(Number(item.totalUsers || 0) / chartMax) * 120}px`,
                     }}
                   />
-                  <span>{item.monthLabel.split("/")[0]}</span>
+                  <span>{item.monthLabel}</span>
                 </div>
               </div>
             ))}
@@ -214,7 +245,7 @@ const DashboardPage = () => {
             <div className="admin-card-icon">◔</div>
             <div>
               <h2>Thống kê bài tập</h2>
-              <p>Theo độ khó</p>
+              <p>Theo độ khó · Toàn hệ thống</p>
             </div>
           </div>
           <div className="dashboard-statistics">
@@ -251,7 +282,7 @@ const DashboardPage = () => {
             <div className="admin-card-icon">▣</div>
             <div>
               <h2>Hoạt động tập luyện</h2>
-              <p>Thống kê theo ngày</p>
+              <p>Thống kê theo ngày · {periodLabel}</p>
             </div>
           </div>
           <div className="dashboard-card-content">
@@ -275,7 +306,7 @@ const DashboardPage = () => {
             <div className="admin-card-icon">✓</div>
             <div>
               <h2>Người dùng mới</h2>
-              <p>Top 5 gần đây</p>
+              <p>Top 5 gần đây · {periodLabel}</p>
             </div>
             <button
               type="button"
@@ -311,7 +342,7 @@ const DashboardPage = () => {
           <div className="admin-card-icon">▤</div>
           <div>
             <h2>Lịch tập mẫu gần đây</h2>
-            <p>Top 5 được tạo mới nhất</p>
+            <p>Top 5 được tạo mới nhất · {periodLabel}</p>
           </div>
         </div>
         <div className="dashboard-card-content">
@@ -334,6 +365,7 @@ const DashboardPage = () => {
           )}
         </div>
       </section>
+      </>}
     </div>
   );
 };

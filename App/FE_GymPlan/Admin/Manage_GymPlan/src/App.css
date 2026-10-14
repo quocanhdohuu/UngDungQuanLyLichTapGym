@@ -1379,6 +1379,40 @@ body {
   font-weight: 600;
 }
 
+.dashboard-date-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--admin-space-3);
+}
+
+.dashboard-date-input {
+  display: grid;
+  gap: var(--admin-space-2);
+  color: var(--text-soft);
+  font-size: var(--admin-font-small);
+}
+
+.dashboard-date-input input {
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--admin-radius-sm);
+  padding: var(--admin-space-3);
+  font: inherit;
+  min-width: 0;
+}
+
+.dashboard-date-input input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.dashboard-load-status p {
+  margin: 0 0 var(--admin-space-2);
+}
+
 .dashboard-kpis {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1411,6 +1445,8 @@ body {
   gap: var(--admin-space-2);
   height: 220px;
   padding-top: var(--admin-space-4);
+  padding-bottom: var(--admin-space-2);
+  overflow-x: auto;
 }
 
 .dashboard-chart-item {
@@ -1418,7 +1454,7 @@ body {
   flex: 1;
   align-items: flex-end;
   justify-content: center;
-  min-width: 0;
+  min-width: 64px;
 }
 
 .dashboard-chart-column {

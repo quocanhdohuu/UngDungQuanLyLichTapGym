@@ -33,6 +33,50 @@ function queryMock(query) {
   mock.method(db, "promise", () => ({ query }));
 }
 
+test("custom plan rejects duplicate Mondays and other repeated weekdays before saving", async () => {
+  queryMock(async () => assert.fail("invalid plans must not query the database"));
+  const save = mock.method(User, "createCustomPlan", async () => assert.fail("invalid plans must not be saved"));
+  for (const weekdays of [[1, 1], [1, 2, 1], [7, 7]]) {
+    const response = await request(`${baseUrl}/93/plans`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Duplicate weekday test", level: "BEGINNER", durationWeeks: 8,
+        days: weekdays.map((weekDay, index) => ({
+          dayName: `Day ${index + 1}`, weekDay,
+          exercises: [{ exerciseId: 19 + index, sets: 3, reps: 10, restTime: 60 }],
+        })),
+      }),
+    });
+    assert.equal(response.status, 400, JSON.stringify(weekdays));
+    assert.deepEqual(await response.json(), { message: "Các ngày tập không được trùng thứ" });
+  }
+  assert.equal(save.mock.callCount(), 0);
+});
+
+test("custom plan accepts distinct weekdays including Monday and Tuesday", async () => {
+  queryMock(async () => assert.fail("database is replaced by the plan model stub"));
+  const save = mock.method(User, "createCustomPlan", async (profileId, plan) => {
+    assert.equal(profileId, 93);
+    assert.equal(new Set(plan.days.map(day => day.weekDay)).size, plan.days.length);
+    return { planId: 28 };
+  });
+  for (const weekdays of [[1, 2], [1, 2, 3, 4, 5, 6, 7]]) {
+    const response = await request(`${baseUrl}/93/plans`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Distinct weekday test", level: "BEGINNER", durationWeeks: 8,
+        days: weekdays.map((weekDay, index) => ({
+          dayName: `Day ${index + 1}`, weekDay,
+          exercises: [{ exerciseId: 19, sets: 3, reps: 10, restTime: 60 }],
+        })),
+      }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { data: { planId: 28 } });
+  }
+  assert.equal(save.mock.callCount(), 2);
+});
+
 test("profile GET uses accountId and update uses profileId, returning fresh profile", async () => {
   const calls = [];
   const profile = { accountId: 71, profileId: 93, fullName: "Updated User" };
