@@ -53,6 +53,7 @@ export type ActivePlan = {
   title: string;
   description: string | null;
   level: Level;
+  goal?: string | null;
   durationWeeks: number;
   currentWeek: number;
   totalDays: number;
@@ -152,11 +153,34 @@ export type PreviousPerformance = Pick<
 export type Template = Pick<
   ActivePlan,
   "planId" | "title" | "description" | "level" | "durationWeeks" | "totalDays"
->;
+> & {
+  goal?: string | null;
+};
 export type TemplateDetail = Template & {
   days: WorkoutDay[];
   isTemplate: boolean;
   creatorId: number;
+};
+export type RecommendedPlan = {
+  planId: number;
+  title: string;
+  description: string | null;
+  level: Level;
+  goal: string | null;
+  durationWeeks: number;
+  totalDays: number;
+  matchScore: number;
+  recommendReason: string;
+};
+export type RecommendationStatus =
+  | "SUCCESS"
+  | "HAS_ACTIVE_PLAN"
+  | "PROFILE_INCOMPLETE"
+  | "NO_MATCH";
+export type RecommendationResult = {
+  status: RecommendationStatus;
+  message?: string;
+  plans: RecommendedPlan[];
 };
 export type CustomPlan = {
   title: string;
@@ -206,6 +230,8 @@ const userPath = (path: string) =>
 const write = <T>(path: string, method: string, body = {}) =>
   apiRequest<T>(userPath(path), { method, body: JSON.stringify(body) });
 export const userApi = {
+  getRecommendations: (signal?: AbortSignal) =>
+    apiRequest<RecommendationResult>(userPath("recommendations"), { signal }),
   getTemplates: (signal?: AbortSignal) =>
     apiRequest<Template[]>("/workoutplans/templates", { signal }),
   getTemplateDetail: (id: number, signal?: AbortSignal) =>
@@ -333,6 +359,15 @@ export const levelLabel = (level?: string) =>
     INTERMEDIATE: "Intermediate",
     ADVANCED: "Advanced",
   })[level || ""] || "—";
+export const goalLabel = (goal?: string | null) => {
+  if (!goal) return "Chưa thiết lập";
+  const upper = String(goal).trim().toUpperCase();
+  if (upper === "MUSCLE_GAIN" || /T[AĂ]NG\s*C[OƠ]/i.test(upper)) return "Tăng cơ";
+  if (upper === "FAT_LOSS" || /GI[AẢ]M\s*M[OỠ]|GIAM\s*CAN/i.test(upper)) return "Giảm mỡ";
+  if (upper === "STRENGTH" || /S[UỨ]C\s*M[AẠ]NH/i.test(upper)) return "Tăng sức mạnh";
+  if (upper === "GENERAL_FITNESS" || /TH[EỂ]\s*L[UỰ]C|S[UỨ]C\s*KH[OỎ]E|FITNESS/i.test(upper)) return "Cải thiện thể lực / Sức khỏe";
+  return goal;
+};
 export const formatNumber = (value: number | string | null | undefined) =>
   value == null
     ? "—"

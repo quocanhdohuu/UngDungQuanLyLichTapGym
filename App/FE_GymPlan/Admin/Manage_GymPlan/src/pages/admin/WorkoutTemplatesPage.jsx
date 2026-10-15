@@ -10,10 +10,47 @@ const API_BASE_URL = "http://localhost:3000";
 const DEFAULT_ADMIN_ID = 2;
 const LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
 const WEEK_DAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"];
+
+const GOAL_OPTIONS = [
+  { value: "MUSCLE_GAIN", label: "Tăng cơ" },
+  { value: "FAT_LOSS", label: "Giảm mỡ" },
+  { value: "STRENGTH", label: "Tăng sức mạnh" },
+  { value: "GENERAL_FITNESS", label: "Cải thiện thể lực / Sức khỏe" },
+];
+
+const normalizeGoalValue = (goal) => {
+  if (!goal) return "MUSCLE_GAIN";
+  const upper = String(goal).trim().toUpperCase();
+  if (upper === "MUSCLE_GAIN" || /T[AĂ]NG\s*C[OƠ]/i.test(upper)) return "MUSCLE_GAIN";
+  if (upper === "FAT_LOSS" || /GI[AẢ]M\s*M[OỠ]|GIAM\s*CAN/i.test(upper)) return "FAT_LOSS";
+  if (upper === "STRENGTH" || /S[UỨ]C\s*M[AẠ]NH/i.test(upper)) return "STRENGTH";
+  if (upper === "GENERAL_FITNESS" || /TH[EỂ]\s*L[UỰ]C|S[UỨ]C\s*KH[OỎ]E|FITNESS/i.test(upper)) return "GENERAL_FITNESS";
+  return upper;
+};
+
+const getGoalClass = (goal) => {
+  const norm = normalizeGoalValue(goal);
+  switch (norm) {
+    case "MUSCLE_GAIN": return "muscle-gain";
+    case "FAT_LOSS": return "fat-loss";
+    case "STRENGTH": return "strength";
+    case "GENERAL_FITNESS": return "general-fitness";
+    default: return "";
+  }
+};
+
+const getGoalLabel = (goal) => {
+  if (!goal) return "Chưa thiết lập";
+  const norm = normalizeGoalValue(goal);
+  const found = GOAL_OPTIONS.find((g) => g.value === norm);
+  return found ? found.label : goal;
+};
+
 const emptyPlanForm = {
   title: "",
   description: "",
   level: "BEGINNER",
+  goal: "MUSCLE_GAIN",
   isTemplate: true,
   durationWeeks: "",
 };
@@ -211,6 +248,7 @@ const WorkoutTemplatesPage = () => {
   const [exercises, setExercises] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [levelFilter, setLevelFilter] = useState("ALL");
+  const [goalFilter, setGoalFilter] = useState("ALL");
   const [daysFilter, setDaysFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -284,9 +322,10 @@ const WorkoutTemplatesPage = () => {
     () =>
       templates.filter((template) => {
         const query = searchTerm.trim().toLowerCase();
+        const goalLabel = getGoalLabel(template.goal);
         const matchesSearch =
           !query ||
-          `${template.title || ""} ${template.description || ""}`
+          `${template.title || ""} ${template.description || ""} ${goalLabel}`
             .toLowerCase()
             .includes(query);
         const totalDays = Number(template.totalDays || 0);
@@ -296,13 +335,19 @@ const WorkoutTemplatesPage = () => {
           (daysFilter === "3-4" && totalDays >= 3 && totalDays <= 4) ||
           (daysFilter === "5-6" && totalDays >= 5 && totalDays <= 6) ||
           (daysFilter === "7" && totalDays === 7);
+        const matchesLevel =
+          levelFilter === "ALL" || template.level === levelFilter;
+        const matchesGoal =
+          goalFilter === "ALL" ||
+          normalizeGoalValue(template.goal) === goalFilter;
         return (
           matchesSearch &&
-          (levelFilter === "ALL" || template.level === levelFilter) &&
+          matchesLevel &&
+          matchesGoal &&
           matchesDays
         );
       }),
-    [templates, searchTerm, levelFilter, daysFilter],
+    [templates, searchTerm, levelFilter, goalFilter, daysFilter],
   );
 
   const refreshCurrent = async (message, refreshTemplates = false) => {
@@ -347,6 +392,7 @@ const WorkoutTemplatesPage = () => {
             title: planDetail.title || "",
             description: planDetail.description || "",
             level: planDetail.level || "BEGINNER",
+            goal: normalizeGoalValue(planDetail.goal),
             isTemplate: Boolean(planDetail.isTemplate),
             durationWeeks: planDetail.durationWeeks ?? "",
           }
@@ -375,6 +421,7 @@ const WorkoutTemplatesPage = () => {
           body: JSON.stringify({
             ...form,
             durationWeeks,
+            goal: form.goal || "MUSCLE_GAIN",
             ...(modal === "create" ? { creatorId: DEFAULT_ADMIN_ID } : {}),
           }),
         },
@@ -467,6 +514,18 @@ const WorkoutTemplatesPage = () => {
           placeholder="Tìm giáo án theo tên, nhóm cơ, mục tiêu..."
         />
         <AdminFilterSelect
+          label="Mục tiêu"
+          value={goalFilter}
+          onChange={(event) => setGoalFilter(event.target.value)}
+        >
+          <option value="ALL">Tất cả mục tiêu</option>
+          {GOAL_OPTIONS.map((goal) => (
+            <option key={goal.value} value={goal.value}>
+              {goal.label}
+            </option>
+          ))}
+        </AdminFilterSelect>
+        <AdminFilterSelect
           label="Trình độ"
           value={levelFilter}
           onChange={(event) => setLevelFilter(event.target.value)}
@@ -517,6 +576,9 @@ const WorkoutTemplatesPage = () => {
                   >
                     <div className="workout-program-top">
                       <strong>{template.title}</strong>
+                      <span className={`admin-badge admin-badge--goal ${getGoalClass(template.goal)}`}>
+                        {getGoalLabel(template.goal)}
+                      </span>
                       <span className="admin-badge">{template.level}</span>
                     </div>
                     <small>{template.totalDays || 0} ngày tập • {template.durationWeeks ?? "—"} tuần</small>
@@ -539,8 +601,17 @@ const WorkoutTemplatesPage = () => {
                 </button>
               </div>
               <h2>{planDetail.title}</h2>
+              <div style={{ display: "flex", gap: "8px", margin: "6px 0 10px", flexWrap: "wrap" }}>
+                <span className={`admin-badge admin-badge--goal ${getGoalClass(planDetail.goal)}`}>
+                  {getGoalLabel(planDetail.goal)}
+                </span>
+                <span className="admin-badge">{planDetail.level}</span>
+              </div>
               <small>Plan ID: {planDetail.planId} • {planDetail.durationWeeks ?? "—"} tuần</small>
               <div className="workout-detail-stats">
+                <div>
+                  Mục tiêu<strong>{getGoalLabel(planDetail.goal)}</strong>
+                </div>
                 <div>
                   Độ khó<strong>{planDetail.level}</strong>
                 </div>
@@ -649,6 +720,19 @@ const WorkoutTemplatesPage = () => {
               >
                 {LEVELS.map((level) => (
                   <option key={level}>{level}</option>
+                ))}
+              </select>
+            </label>
+            <label className="admin-form-field">
+              Mục tiêu
+              <select
+                value={form.goal || "MUSCLE_GAIN"}
+                onChange={(event) => updateForm("goal", event.target.value)}
+              >
+                {GOAL_OPTIONS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
                 ))}
               </select>
             </label>

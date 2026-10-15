@@ -19,6 +19,12 @@ const validatePlan = (body, includeCreator = false) => {
   )
     return "creatorId không hợp lệ";
   if (typeof body.isTemplate !== "boolean") return "isTemplate phải là boolean";
+  if (
+    body.goal !== undefined &&
+    body.goal !== null &&
+    (typeof body.goal !== "string" || body.goal.trim().length > 255)
+  )
+    return "Mục tiêu tối đa 255 ký tự";
   return null;
 };
 
@@ -63,6 +69,7 @@ const WorkoutplansController = {
         creatorId: Number(req.body.creatorId || DEFAULT_ADMIN_ID),
         title: req.body.title.trim(),
         description: req.body.description ?? null,
+        goal: typeof req.body.goal === "string" ? req.body.goal.trim() || null : null,
       };
       const result = await Workoutplans.createWithProcedure(data);
       return res.status(201).json({
@@ -87,6 +94,7 @@ const WorkoutplansController = {
         ...req.body,
         title: req.body.title.trim(),
         description: req.body.description ?? null,
+        goal: typeof req.body.goal === "string" ? req.body.goal.trim() || null : null,
       };
       const result = await Workoutplans.updateWithProcedure(
         Number(req.params.planId),

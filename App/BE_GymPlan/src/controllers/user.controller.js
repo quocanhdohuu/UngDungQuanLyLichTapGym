@@ -158,4 +158,5 @@ module.exports = {
     return User.changePassword(Number(req.params.accountId), oldPassword, newPassword);
   }),
   getBodyMetrics: handle((req) => User.getBodyMetrics(Number(req.params.profileId))),
+  getRecommendations: handle((req) => User.getRecommendations(Number(req.params.profileId))),
 };

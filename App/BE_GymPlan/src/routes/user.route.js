@@ -10,6 +10,7 @@ router.get("/profile/:accountId", User.getProfile);
 router.put("/profile/:profileId", User.updateProfile);
 router.put("/profile/:accountId/change-password", User.changePassword);
 router.get("/:profileId/active-plan", User.getActivePlan);
+router.get("/:profileId/recommendations", User.getRecommendations);
 router.post("/:profileId/apply-plan", User.applyPlan);
 router.get("/:profileId/today-workout", User.getTodayWorkout);
 router.get("/:profileId/progress-summary", User.getProgressSummary);

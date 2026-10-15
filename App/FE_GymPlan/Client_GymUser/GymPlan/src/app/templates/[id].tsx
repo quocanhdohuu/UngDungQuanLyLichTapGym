@@ -1,7 +1,7 @@
 import { DataState } from "@/components/common/data-state";
 import { Button, Confirm, Page, ui, useAction } from "@/components/common/flow-ui";
 import { useApiData } from "@/hooks/use-api-data";
-import { levelLabel, userApi } from "@/services/user-api";
+import { goalLabel, levelLabel, userApi } from "@/services/user-api";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -15,7 +15,20 @@ export default function TemplateDetailScreen() {
   return <Page title={plan?.title || "Chi tiết lịch tập"}>
     <DataState {...state} retry={state.refresh} />
     {plan && <>
-      <Text style={ui.accent}>{levelLabel(plan.level)} • {plan.durationWeeks} tuần • {plan.days.length} ngày tập</Text>
+      <View style={{ flexDirection: "row", gap: 8, marginVertical: 6, flexWrap: "wrap" }}>
+        <View style={{ backgroundColor: "#1C2E24", borderColor: "#8CFF2E", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+          <Text style={{ color: "#8CFF2E", fontWeight: "800", fontSize: 13 }}>{goalLabel(plan.goal)}</Text>
+        </View>
+        <View style={{ backgroundColor: "#252D28", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+          <Text style={{ color: "#EEF0ED", fontWeight: "700", fontSize: 13 }}>{levelLabel(plan.level)}</Text>
+        </View>
+        <View style={{ backgroundColor: "#252D28", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+          <Text style={{ color: "#ABB5AA", fontWeight: "700", fontSize: 13 }}>{plan.days.length} ngày / tuần</Text>
+        </View>
+        <View style={{ backgroundColor: "#252D28", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+          <Text style={{ color: "#ABB5AA", fontWeight: "700", fontSize: 13 }}>{plan.durationWeeks} tuần</Text>
+        </View>
+      </View>
       <Text style={ui.text}>{plan.description || "Chưa có mô tả"}</Text>
       {plan.days.map(day => <View style={ui.card} key={day.dayId}>
         <Text style={ui.heading}>{day.dayName}</Text>
@@ -29,7 +42,10 @@ export default function TemplateDetailScreen() {
       <Button title="SỬ DỤNG LỊCH NÀY" disabled={!plan.days.some(day => day.exercises.length)} onPress={() => { action.setError(null); setConfirm(true); }} />
       <Confirm visible={confirm} title="Áp dụng lịch mẫu?" confirmLabel="✓ Áp dụng lịch tập này"
         message="Lịch mẫu sẽ thay thế lịch đang áp dụng. Tiến trình và lịch sử tập luyện trước đây được giữ lại."
-        details={<View style={[ui.card, { backgroundColor: "#252D28", borderRadius: 10 }]}><Text style={ui.heading}>{plan.title}</Text><Text style={ui.accent}>{levelLabel(plan.level)} • {plan.days.length} ngày / tuần • {plan.durationWeeks} tuần</Text></View>}
+        details={<View style={[ui.card, { backgroundColor: "#252D28", borderRadius: 10 }]}>
+          <Text style={ui.heading}>{plan.title}</Text>
+          <Text style={ui.accent}>{goalLabel(plan.goal)} • {levelLabel(plan.level)} • {plan.days.length} ngày / tuần • {plan.durationWeeks} tuần</Text>
+        </View>}
         busy={action.busy} error={action.error} onClose={() => setConfirm(false)} onConfirm={() => action.run(async () => {
           await userApi.applyPlan(plan.planId); setConfirm(false); router.replace("/plans");
         })} />

@@ -179,6 +179,25 @@ const User = {
 
   getBodyMetrics: async (profileId) =>
     (await call("CALL sp_GetUserBodyMetrics(?)", [profileId]))[0] || [],
+
+  getRecommendations: async (profileId) => {
+    const result = await call("CALL sp_GetRecommendedWorkoutPlans(?)", [profileId]);
+    const meta = result[0]?.[0];
+    if (!meta) {
+      return { status: "NO_MATCH", message: "Không tìm thấy lịch tập phù hợp", plans: [], data: [] };
+    }
+    if (meta.status === "HAS_ACTIVE_PLAN") {
+      return { status: "HAS_ACTIVE_PLAN", message: meta.message || "Người dùng đã có lịch tập đang hoạt động", plans: [], data: [] };
+    }
+    if (meta.status === "PROFILE_INCOMPLETE") {
+      return { status: "PROFILE_INCOMPLETE", message: meta.message || "Người dùng chưa hoàn thiện hồ sơ tập luyện", plans: [], data: [] };
+    }
+    const plans = result[1] || [];
+    if (!plans.length) {
+      return { status: "NO_MATCH", message: "Không tìm thấy lịch tập phù hợp với hồ sơ hiện tại", plans: [], data: [] };
+    }
+    return { status: "SUCCESS", message: "Gợi ý lịch tập thành công", plans, data: plans };
+  },
 };
 
 module.exports = User;

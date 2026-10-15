@@ -75,13 +75,14 @@ Workoutplans.getDetail = async (planId) => {
 Workoutplans.createWithProcedure = async (data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_CreateWorkoutPlan(?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_CreateWorkoutPlan(?, ?, ?, ?, ?, ?, ?)", [
       data.title,
       data.description,
       data.creatorId,
       data.isTemplate,
       data.level,
       data.durationWeeks,
+      data.goal ?? null,
     ]);
   return result[0]?.[0] || null;
 };
@@ -89,13 +90,14 @@ Workoutplans.createWithProcedure = async (data) => {
 Workoutplans.updateWithProcedure = async (planId, data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_UpdateWorkoutPlan(?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_UpdateWorkoutPlan(?, ?, ?, ?, ?, ?, ?)", [
       planId,
       data.title,
       data.description,
       data.level,
       data.isTemplate,
       data.durationWeeks,
+      data.goal ?? null,
     ]);
   return result[0]?.[0] || null;
 };

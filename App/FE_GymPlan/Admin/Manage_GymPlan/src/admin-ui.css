@@ -400,6 +400,36 @@
   border-color: var(--green);
 }
 
+.admin-badge--goal {
+  background: rgba(106, 215, 255, 0.12);
+  color: #6ad7ff;
+  border-color: rgba(106, 215, 255, 0.25);
+}
+
+.admin-badge--goal.muscle-gain {
+  background: rgba(106, 215, 255, 0.12);
+  color: #6ad7ff;
+  border-color: rgba(106, 215, 255, 0.25);
+}
+
+.admin-badge--goal.fat-loss {
+  background: rgba(255, 114, 114, 0.12);
+  color: #ff8e8e;
+  border-color: rgba(255, 114, 114, 0.25);
+}
+
+.admin-badge--goal.strength {
+  background: rgba(177, 140, 255, 0.12);
+  color: #c7aaff;
+  border-color: rgba(177, 140, 255, 0.25);
+}
+
+.admin-badge--goal.general-fitness {
+  background: rgba(136, 247, 174, 0.12);
+  color: #88f7ae;
+  border-color: rgba(136, 247, 174, 0.25);
+}
+
 .difficulty-tag {
   text-transform: uppercase;
 }

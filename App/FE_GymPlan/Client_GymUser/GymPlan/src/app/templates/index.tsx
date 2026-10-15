@@ -1,7 +1,7 @@
 import { DataState } from "@/components/common/data-state";
 import { Button, Page, ui } from "@/components/common/flow-ui";
 import { useApiData } from "@/hooks/use-api-data";
-import { Level, levelLabel, userApi } from "@/services/user-api";
+import { Level, goalLabel, levelLabel, userApi } from "@/services/user-api";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -16,7 +16,13 @@ export default function TemplatesScreen() {
       <Button key={value} title={value === "ALL" ? "Tất cả" : levelLabel(value)} secondary={level !== value} onPress={() => setLevel(value)} />)}</View>
     <DataState {...state} retry={state.refresh} empty={!plans.length && "Chưa có lịch mẫu phù hợp"} />
     {plans.map(plan => <View key={plan.planId} style={ui.card}>
-      <Text style={ui.accent}>{levelLabel(plan.level)} • {plan.durationWeeks} tuần</Text>
+      <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <Text style={[ui.accent, { color: "#8CFF2E" }]}>{goalLabel(plan.goal)}</Text>
+        <Text style={ui.muted}>•</Text>
+        <Text style={ui.accent}>{levelLabel(plan.level)}</Text>
+        <Text style={ui.muted}>•</Text>
+        <Text style={ui.muted}>{plan.durationWeeks} tuần</Text>
+      </View>
       <Text style={ui.heading}>{plan.title}</Text><Text style={ui.text}>{plan.description || "Chưa có mô tả"}</Text>
       <Text style={ui.muted}>{plan.totalDays} ngày tập / tuần</Text>
       <Button title="Xem chi tiết →" onPress={() => router.push({ pathname: "/templates/[id]", params: { id: plan.planId } })} />
