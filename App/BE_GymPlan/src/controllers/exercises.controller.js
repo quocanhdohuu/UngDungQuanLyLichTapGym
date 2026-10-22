@@ -9,6 +9,8 @@ const VALID_MEDIA_TYPES = new Set(["IMAGE", "VIDEO"]);
 const normalizePayload = (body) => ({
   name: typeof body.name === "string" ? body.name.trim() : body.name,
   description: body.description ?? null,
+  instructions: body.instructions ?? null,
+  cautions: body.cautions ?? null,
   difficulty:
     typeof body.difficulty === "string"
       ? body.difficulty.toUpperCase()

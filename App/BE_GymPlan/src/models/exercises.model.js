@@ -22,7 +22,7 @@ Exercises.getDetailsById = async (exerciseId) => {
   const [exerciseRows] = await db
     .promise()
     .query(
-      "SELECT exerciseId, name, description, difficulty FROM `exercises` WHERE exerciseId = ?",
+      "SELECT exerciseId, name, description, instructions, cautions, difficulty FROM `exercises` WHERE exerciseId = ?",
       [exerciseId],
     );
 
@@ -86,9 +86,11 @@ Exercises.getDetailsById = async (exerciseId) => {
 Exercises.createWithProcedure = async (data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_AddExercise(?, ?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_AddExercise(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
       data.name,
       data.description ?? null,
+      data.instructions ?? null,
+      data.cautions ?? null,
       data.difficulty,
       JSON.stringify(data.muscleGroups),
       JSON.stringify(data.equipmentIds),
@@ -102,10 +104,12 @@ Exercises.createWithProcedure = async (data) => {
 Exercises.updateWithProcedure = async (exerciseId, data) => {
   const [result] = await db
     .promise()
-    .query("CALL sp_UpdateExercise(?, ?, ?, ?, ?, ?, ?, ?)", [
+    .query("CALL sp_UpdateExercise(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
       exerciseId,
       data.name,
       data.description ?? null,
+      data.instructions ?? null,
+      data.cautions ?? null,
       data.difficulty,
       JSON.stringify(data.muscleGroups),
       JSON.stringify(data.equipmentIds),

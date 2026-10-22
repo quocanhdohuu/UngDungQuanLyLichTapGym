@@ -118,6 +118,8 @@ CREATE TABLE Exercises (
     exerciseId INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     description TEXT,
+    instructions TEXT,
+    cautions TEXT,
     mediaUrl VARCHAR(500),
     difficulty ENUM('EASY', 'MEDIUM', 'HARD')
         DEFAULT 'MEDIUM'

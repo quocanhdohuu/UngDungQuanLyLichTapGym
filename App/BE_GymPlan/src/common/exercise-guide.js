@@ -54,8 +54,20 @@ function parseGuide(description) {
 }
 
 function getExerciseGuide(exercise) {
-  const authored = parseGuide(exercise.description);
-  const key = normalize(exercise.name || "");
+  if (exercise?.instructions) {
+    const stepLines = String(exercise.instructions).replace(/\r\n?/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
+    const steps = stepLines.map(line => {
+      const match = line.match(/^(?:bước\s*)?(\d+)[.):\-]\s*(.+)$/i);
+      return match ? match[2] : line;
+    });
+    const mistakeLines = String(exercise.cautions || "").replace(/\r\n?/g, "\n").split("\n").map(l => l.replace(/^(?:[-•*]|\d+[.)])\s*/, "").trim()).filter(Boolean);
+    return {
+      steps,
+      mistakes: mistakeLines,
+    };
+  }
+  const authored = parseGuide(exercise?.description);
+  const key = normalize(exercise?.name || "");
   return authored || (Object.hasOwn(catalog, key) ? catalog[key] : null);
 }
 

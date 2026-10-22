@@ -19,6 +19,8 @@ const DIFFICULTIES = [
 const emptyForm = () => ({
   name: "",
   description: "",
+  instructions: "",
+  cautions: "",
   difficulty: "EASY",
   muscleGroups: [],
   equipmentIds: [],
@@ -293,6 +295,8 @@ const ExercisesPage = () => {
       setForm({
         name: data.name || "",
         description: data.description || "",
+        instructions: data.instructions || "",
+        cautions: data.cautions || "",
         difficulty: data.difficulty || "EASY",
         muscleGroups: Array.isArray(data.muscleGroups) ? data.muscleGroups : [],
         equipmentIds: Array.isArray(data.equipmentIds)
@@ -576,6 +580,8 @@ const ExercisesPage = () => {
     const payload = {
       name: form.name.trim(),
       description: form.description,
+      instructions: form.instructions || null,
+      cautions: form.cautions || null,
       difficulty: form.difficulty,
       muscleGroups: form.muscleGroups.map((item) => ({
         groupId: Number(item.groupId),
@@ -973,6 +979,28 @@ const ExercisesPage = () => {
                     value={form.description}
                     onChange={(event) =>
                       setForm({ ...form, description: event.target.value })
+                    }
+                    rows="3"
+                  />
+                </label>
+                <label className="admin-form-field">
+                  Hướng dẫn thực hiện động tác (các bước)
+                  <textarea
+                    value={form.instructions}
+                    placeholder="1. Chuẩn bị...&#10;2. Bắt đầu...&#10;3. Phát lực...&#10;4. Kết thúc..."
+                    onChange={(event) =>
+                      setForm({ ...form, instructions: event.target.value })
+                    }
+                    rows="4"
+                  />
+                </label>
+                <label className="admin-form-field">
+                  Lưu ý an toàn & Cảnh báo chấn thương
+                  <textarea
+                    value={form.cautions}
+                    placeholder="• Lưu ý tư thế lưng/khớp...&#10;• Cảnh báo lỗi sai nguy hiểm..."
+                    onChange={(event) =>
+                      setForm({ ...form, cautions: event.target.value })
                     }
                     rows="3"
                   />

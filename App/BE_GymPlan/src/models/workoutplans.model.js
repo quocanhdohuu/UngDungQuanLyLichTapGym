@@ -56,6 +56,8 @@ Workoutplans.getDetail = async (planId) => {
         exerciseId: row.exerciseId,
         exerciseName: row.exerciseName,
         exerciseDescription: row.exerciseDescription,
+        instructions: row.exerciseInstructions,
+        cautions: row.exerciseCautions,
         difficulty: row.difficulty,
         sets: row.sets,
         reps: row.reps,

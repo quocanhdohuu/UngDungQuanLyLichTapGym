@@ -45,13 +45,13 @@ export default function ExerciseDetailScreen() {
         {!records.loading && !records.error && <Text style={ui.accent}>{record?.maxWeight != null ? formatNumber(record.maxWeight) + " KG" : "Chưa ghi nhận PR cho bài tập này"}</Text>}
       </View>
       {!!description && <Text style={ui.text}>{description}</Text>}
-      <View style={ui.card}><Text style={ui.heading}>Hướng dẫn thực hiện • 4 bước</Text>
-        {exercise.guide ? exercise.guide.steps.map((step, index) => <View key={index} style={{ gap: 4 }}>
+      <View style={ui.card}><Text style={ui.heading}>📋 Hướng dẫn thực hiện chuẩn</Text>
+        {exercise.guide?.steps?.length ? exercise.guide.steps.map((step, index) => <View key={index} style={{ gap: 4 }}>
           <Text style={ui.accent}>BƯỚC {index + 1}</Text><Text style={ui.text}>{step}</Text>
-        </View>) : <Text style={ui.muted}>Bài tập này chưa có hướng dẫn 4 bước.</Text>}
+        </View>) : exercise.instructions ? <Text style={[ui.text, { lineHeight: 22 }]}>{exercise.instructions}</Text> : <Text style={ui.muted}>Bài tập này chưa có hướng dẫn chi tiết.</Text>}
       </View>
-      <View style={ui.card}><Text style={ui.heading}>Lỗi thường gặp</Text>
-        {exercise.guide ? exercise.guide.mistakes.map((mistake, index) => <Text key={index} style={ui.text}>• {mistake}</Text>) : <Text style={ui.muted}>Chưa có nội dung lỗi thường gặp cho bài tập này.</Text>}
+      <View style={[ui.card, { borderColor: "#D97706", borderWidth: 1, backgroundColor: "#1C170E" }]}><Text style={[ui.heading, { color: "#FBBF24" }]}>⚠️ Lưu ý an toàn & Cảnh báo chấn thương</Text>
+        {exercise.guide?.mistakes?.length ? exercise.guide.mistakes.map((mistake, index) => <Text key={index} style={[ui.text, { color: "#FEF3C7" }]}>• {mistake}</Text>) : exercise.cautions ? <Text style={[ui.text, { color: "#FEF3C7", lineHeight: 22 }]}>{exercise.cautions}</Text> : <Text style={ui.muted}>Chưa có nội dung lưu ý an toàn cho bài tập này.</Text>}
       </View>
       {exercise.guide?.source && <Button secondary title={"Nguồn: " + exercise.guide.source.title} onPress={async () => {
         setLinkError(false);

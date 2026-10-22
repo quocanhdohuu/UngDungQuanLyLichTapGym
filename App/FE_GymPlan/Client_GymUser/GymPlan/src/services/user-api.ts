@@ -33,6 +33,8 @@ export type PlanExercise = {
   configId: number;
   exerciseId: number;
   exerciseName: string;
+  instructions?: string | null;
+  cautions?: string | null;
   sets: number;
   reps: number;
   restTime: number;
@@ -128,6 +130,8 @@ export type WorkoutDetail = {
     isSubstituted?: boolean;
     isActive?: boolean;
     description?: string | null;
+    instructions?: string | null;
+    cautions?: string | null;
     difficulty?: "EASY" | "MEDIUM" | "HARD" | null;
     preview?: string | null;
     exerciseName: string;
@@ -217,6 +221,8 @@ export type LibraryExercise = {
   exerciseId: number;
   name: string;
   description: string | null;
+  instructions?: string | null;
+  cautions?: string | null;
   difficulty: "EASY" | "MEDIUM" | "HARD";
   preview: string | null;
   primaryMuscles: string | null;

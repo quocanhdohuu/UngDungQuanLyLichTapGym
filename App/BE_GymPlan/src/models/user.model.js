@@ -99,7 +99,7 @@ const User = {
     const [rows] = await db.promise().query(
       `SELECT pe.performedExerciseId, pe.exerciseId, pe.originalExerciseId, pe.isSubstituted, pe.isActive, pe.isCompleted,
               e.name AS exerciseName, orig.name AS originalExerciseName,
-              e.description, e.difficulty,
+              e.description, e.instructions, e.cautions, e.difficulty,
               (SELECT em.mediaUrl FROM ExerciseMedia em
                WHERE em.exerciseId = e.exerciseId AND em.mediaType = 'IMAGE'
                ORDER BY em.sortOrder, em.mediaId LIMIT 1) AS preview,
@@ -127,6 +127,8 @@ const User = {
           isSubstituted: Boolean(row.isSubstituted),
           isActive: Boolean(row.isActive),
           description: row.description,
+          instructions: row.instructions,
+          cautions: row.cautions,
           difficulty: row.difficulty,
           preview: row.preview,
           exerciseName: row.exerciseName,
@@ -146,7 +148,7 @@ const User = {
       });
     }
     const [prescription] = session.dayId ? await db.promise().query(
-      `SELECT ec.configId, ec.exerciseId, e.name AS exerciseName, ec.sets, ec.reps, ec.restTime,
+      `SELECT ec.configId, ec.exerciseId, e.name AS exerciseName, e.instructions, e.cautions, ec.sets, ec.reps, ec.restTime,
          (SELECT GROUP_CONCAT(DISTINCT mg.groupName ORDER BY mg.groupName SEPARATOR ', ')
           FROM ExerciseMuscleGroups emg JOIN MuscleGroups mg ON mg.groupId = emg.groupId
           WHERE emg.exerciseId = e.exerciseId AND emg.role = 'PRIMARY') AS primaryMuscles,

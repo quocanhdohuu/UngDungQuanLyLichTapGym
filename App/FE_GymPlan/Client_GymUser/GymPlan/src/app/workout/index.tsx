@@ -157,6 +157,12 @@ function ExercisePanel({ exercise, session, busy, error, run, reload, startRest 
     setRemoved(null);
     await reload();
   });
+  const [showTechnique, setShowTechnique] = useState(false);
+  const instructions = guide.data?.instructions || activeExercise.instructions || exercise.instructions;
+  const cautions = guide.data?.cautions || activeExercise.cautions || exercise.cautions;
+  const steps = guide.data?.guide?.steps || (instructions ? instructions.split("\n").map(s => s.replace(/^\d+[\.\)]\s*/, "").trim()).filter(Boolean) : []);
+  const mistakes = guide.data?.guide?.mistakes || (cautions ? cautions.split("\n").map(s => s.replace(/^[•\-\*]\s*/, "").trim()).filter(Boolean) : []);
+
   return <View style={{ gap: 12 }}>
     <View style={ui.card}>
       <Text style={ui.heading}>{activeExercise.exerciseName}</Text>
@@ -167,10 +173,53 @@ function ExercisePanel({ exercise, session, busy, error, run, reload, startRest 
       {!!performed?.difficulty && <Text style={ui.muted}>Độ khó: {difficultyLabel[performed.difficulty]}</Text>}
       <Text style={ui.text}>Nhóm cơ: {activeExercise.primaryMuscles || "Chưa cập nhật"}</Text>
       <Text style={ui.text}>Dụng cụ: {activeExercise.equipment || "Chưa cập nhật"}</Text>
-      <Text style={ui.muted}>Mục tiêu RPE: Chưa thiết lập</Text>
       <Text style={ui.muted}>{exercise.sets} hiệp × {exercise.reps} lần • Nghỉ {exercise.restTime}s</Text>
-      <Button title="Xem hướng dẫn động tác" secondary disabled={busy} onPress={() => router.push({ pathname: "/exercises/[id]", params: { id: activeExercise.exerciseId } })} />
-      <Button title="Đổi bài tập" secondary disabled={busy} onPress={() => setPickerOpen(true)} />
+
+      {/* Cảnh báo an toàn & Lưu ý quan trọng */}
+      {mistakes.length > 0 && (
+        <View style={{ backgroundColor: "#1C170E", borderColor: "#D97706", borderWidth: 1, borderRadius: 12, padding: 12, gap: 6 }}>
+          <Text style={[ui.heading, { color: "#FBBF24", fontSize: 13 }]}>⚠️ Lưu ý an toàn & Cảnh báo</Text>
+          {mistakes.map((mistake, i) => (
+            <Text key={i} style={[ui.text, { color: "#FEF3C7", fontSize: 13, lineHeight: 18 }]}>• {mistake}</Text>
+          ))}
+        </View>
+      )}
+
+      {/* Nút bấm xem Hướng dẫn kỹ thuật trực tiếp */}
+      <Button
+        title={showTechnique ? "▲ Thu gọn hướng dẫn kỹ thuật" : "📋 Xem hướng dẫn thực hiện động tác (" + (steps.length ? steps.length + " bước" : "kỹ thuật") + ")"}
+        secondary
+        disabled={busy}
+        onPress={() => setShowTechnique(v => !v)}
+      />
+
+      {showTechnique && (
+        <View style={{ backgroundColor: "#141A16", borderColor: "#243328", borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 }}>
+          <Text style={[ui.accent, { fontSize: 13 }]}>📋 CÁC BƯỚC THỰC HIỆN CHUẨN</Text>
+          {steps.length > 0 ? (
+            steps.map((step, i) => (
+              <View key={i} style={{ gap: 2 }}>
+                <Text style={[ui.accent, { fontSize: 11 }]}>BƯỚC {i + 1}</Text>
+                <Text style={[ui.text, { fontSize: 13, lineHeight: 19 }]}>{step}</Text>
+              </View>
+            ))
+          ) : instructions ? (
+            <Text style={[ui.text, { fontSize: 13, lineHeight: 19 }]}>{instructions}</Text>
+          ) : (
+            <Text style={ui.muted}>Đang cập nhật hướng dẫn cho bài tập này.</Text>
+          )}
+        </View>
+      )}
+
+      <View style={ui.row}>
+        <View style={{ flex: 1 }}>
+          <Button title="Xem chi tiết bài tập ›" secondary disabled={busy} onPress={() => router.push({ pathname: "/exercises/[id]", params: { id: activeExercise.exerciseId } })} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button title="Đổi bài tập" secondary disabled={busy} onPress={() => setPickerOpen(true)} />
+        </View>
+      </View>
+
       {retainedSets > 0 && <Text style={ui.muted}>Đã giữ lại {retainedSets} hiệp của các bài trước trong lịch sử buổi tập.</Text>}
       {performed?.isCompleted && <Text style={ui.accent}>✓ Đã hoàn thành bài</Text>}
     </View>
