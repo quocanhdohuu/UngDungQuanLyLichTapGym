@@ -5,7 +5,7 @@ export const API_BASE_URL = (
   process.env.EXPO_PUBLIC_API_URL ||
   (Platform.OS === "web" && typeof window !== "undefined"
     ? `http://${window.location.hostname}:3000`
-    : "http://172.20.10.6:3000")
+    : "http://10.10.20.138:3000")
 ).replace(/\/$/, "");
 
 export async function apiRequest<T>(
@@ -18,7 +18,7 @@ export async function apiRequest<T>(
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort);
   if (options.signal?.aborted) controller.abort();
-  const timeout = setTimeout(abort, 15000);
+  const timeout = setTimeout(abort, 8000);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...requestOptions,

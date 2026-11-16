@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "@/services/api";
-import { setAuthSession } from "@/auth-session";
-import { router } from "expo-router";
+import { setAuthSession, useAuthSession } from "@/auth-session";
+import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
@@ -193,6 +193,11 @@ function AuthFooter({
 }
 
 export default function HomeScreen() {
+  const session = useAuthSession();
+  if (session) {
+    return <Redirect href="/home" />;
+  }
+
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("minh@example.test");
   const [name, setName] = useState("");

@@ -109,7 +109,9 @@ export default function ProgressScreen() {
     return { summary, records };
   });
   const history = useApiData((signal) => userApi.history(period, signal), period);
-  const refresh = () => Promise.all([overview.refresh(), history.refresh()]);
+  const refresh = async () => {
+    await Promise.all([overview.refresh(), history.refresh()]);
+  };
   const filters: [Period, string][] = [["ALL", "Tất cả"], ["WEEK", "Tuần này"], ["MONTH", "Tháng này"]];
   return (
     <SafeAreaView edges={["top"]} style={styles.screen}>

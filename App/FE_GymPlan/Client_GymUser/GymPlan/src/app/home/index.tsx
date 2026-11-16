@@ -1,9 +1,11 @@
 import { useStartWorkout } from "@/hooks/use-start-workout";
 import { DataState } from "@/components/common/data-state";
 import { useApiData } from "@/hooks/use-api-data";
-import { formatNumber, levelLabel, userApi } from "@/services/user-api";
+import { WorkoutDetail, formatNumber, levelLabel, userApi } from "@/services/user-api";
+import { workoutOffline } from "@/services/workout-offline";
 import { SharedHeader } from "@/components/common/shared-header";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -120,6 +122,20 @@ function ExerciseRow({
 
 export default function HomeScreen() {
   const workout = useStartWorkout();
+  const [cachedSession, setCachedSession] = useState<WorkoutDetail | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      workoutOffline.getCachedSession().then(s => {
+        if (s && s.status === "IN_PROGRESS") {
+          setCachedSession(s);
+        } else {
+          setCachedSession(null);
+        }
+      });
+    }, [])
+  );
+
   const state = useApiData(async (signal) => {
     const [profile, plan, today, summary, records, history, activeSession] = await Promise.all([
       userApi.profile(signal), userApi.activePlan(signal), userApi.todayWorkout(signal),
@@ -128,6 +144,7 @@ export default function HomeScreen() {
     return { profile, plan, today, summary, records, history, activeSession };
   });
   const { profile, plan, today, summary, records = [], history = [] } = state.data || {};
+  const activeSession = state.data?.activeSession ?? cachedSession;
   const weeklyVolume = history.reduce((sum, item) => sum + Number(item.totalVolume), 0) / 1000;
   const recentVolumes = history.slice(0, 3).reverse().map((item) => Number(item.totalVolume));
   const maxVolume = Math.max(1, ...recentVolumes);
@@ -139,7 +156,7 @@ export default function HomeScreen() {
     isToday(item.endTime || item.startTime),
   );
   const hasCompletedToday = !!todayCompletedSession;
-  const hasActiveSession = !!state.data?.activeSession;
+  const hasActiveSession = Boolean(activeSession && activeSession.status === "IN_PROGRESS");
   const canStartOrContinue = hasActiveSession || (!hasCompletedToday && !!today);
   const isButtonDisabled = !canStartOrContinue || workout.busy;
 
@@ -226,6 +243,10 @@ export default function HomeScreen() {
                 disabled={isButtonDisabled}
                 onPress={() => {
                   if (isButtonDisabled) return;
+                  if (hasActiveSession) {
+                    router.push({ pathname: "/workout", params: { sessionId: activeSession?.workoutSessionId } });
+                    return;
+                  }
                   workout.start(today?.dayId);
                 }}
               >

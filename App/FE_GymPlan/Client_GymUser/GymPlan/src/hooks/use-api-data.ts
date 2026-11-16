@@ -11,7 +11,7 @@ export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key =
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<void> => {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -21,10 +21,8 @@ export function useApiData<T>(loader: (signal: AbortSignal) => Promise<T>, key =
     try {
       const result = await loaderRef.current(controller.signal);
       if (!controller.signal.aborted) setData(result);
-      return controller.signal.aborted ? null : result;
     } catch (error) {
       if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Không thể tải dữ liệu.");
-      return null;
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }

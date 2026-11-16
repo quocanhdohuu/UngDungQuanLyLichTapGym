@@ -43,7 +43,6 @@ export default function TabLayout() {
           <Stack.Screen name="history/[id]" />
           <Stack.Screen name="progress/index" />
           <Stack.Screen name="profile/index" />
-          <Stack.Screen name="explore" />
         </Stack.Protected>
       </Stack>
       <AppTabs />
