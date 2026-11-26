@@ -92,6 +92,31 @@ export default function NutritionCameraScreen() {
       const latency = Date.now() - t0;
       console.log(`[Nutrition] Phân tích hoàn tất sau ${latency}ms`);
 
+      // Xử lý trường hợp ảnh không xác định được món ăn (không có thức ăn)
+      if (!result.predictions || result.predictions.length === 0) {
+        setIsAnalyzing(false);
+        Alert.alert(
+          "Không nhận diện được món ăn",
+          "Ảnh không chứa món ăn hoặc góc chụp chưa thấy rõ đĩa thức ăn. Bạn có muốn tự chọn món thủ công không?",
+          [
+            { text: "Chụp lại", style: "cancel" },
+            {
+              text: "Tự thêm món",
+              onPress: () => {
+                setNutritionScanResult(result, rawUri);
+                router.push({
+                  pathname: "/nutrition/review" as any,
+                  params: {
+                    imageUri: encodeURIComponent(rawUri),
+                  },
+                });
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       // Lưu kết quả vào in-memory store an toàn
       setNutritionScanResult(result, rawUri);
       setIsAnalyzing(false);
