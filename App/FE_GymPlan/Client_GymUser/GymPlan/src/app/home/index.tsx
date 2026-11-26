@@ -8,6 +8,8 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { nutritionApi } from "@/services/nutrition-api";
+import { getAuthSession } from "@/auth-session";
 
 const colors = {
   background: "#080A0C",
@@ -123,6 +125,7 @@ function ExerciseRow({
 export default function HomeScreen() {
   const workout = useStartWorkout();
   const [cachedSession, setCachedSession] = useState<WorkoutDetail | null>(null);
+  const [todayNutrition, setTodayNutrition] = useState<{ totalKcal: number; totalProtein: number; totalCarb: number; totalFat: number } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -133,6 +136,12 @@ export default function HomeScreen() {
           setCachedSession(null);
         }
       });
+      const session = getAuthSession();
+      nutritionApi.getDailySummary(session?.profileId || 1).then(res => {
+        if (res?.data?.summary) {
+          setTodayNutrition(res.data.summary);
+        }
+      }).catch(() => {});
     }, [])
   );
 
@@ -291,6 +300,36 @@ export default function HomeScreen() {
               <Text style={styles.recordText}>{record?.exerciseName || "Chưa có PR"}</Text>
               <Text style={styles.recordDelta}>{record ? "Thành tích cao nhất" : "—"}</Text>
             </StatCard>
+          </View>
+
+          <SectionHeader title="DINH DƯỠNG HÔM NAY" action="Nhật ký →" onPress={() => router.push("/nutrition/history" as any)} />
+          <View style={styles.nutritionCard}>
+            <View style={styles.nutritionMainRow}>
+              <View>
+                <Text style={styles.nutritionKcalValue}>
+                  {Math.round(todayNutrition?.totalKcal || 0)} <Text style={styles.nutritionKcalUnit}>Kcal</Text>
+                </Text>
+                <Text style={styles.nutritionSubText}>Đã nạp hôm nay</Text>
+              </View>
+              <Pressable style={styles.nutritionScanButton} onPress={() => router.push("/nutrition/camera" as any)}>
+                <Text style={styles.nutritionScanIcon}>📸</Text>
+                <Text style={styles.nutritionScanText}>Quét bữa ăn</Text>
+              </Pressable>
+            </View>
+            <View style={styles.nutritionMacroRow}>
+              <View style={styles.nutritionMacroItem}>
+                <Text style={[styles.nutritionMacroDot, { color: "#FF5252" }]}>● Protein</Text>
+                <Text style={styles.nutritionMacroVal}>{Math.round(todayNutrition?.totalProtein || 0)}g</Text>
+              </View>
+              <View style={styles.nutritionMacroItem}>
+                <Text style={[styles.nutritionMacroDot, { color: "#FFB300" }]}>● Carb</Text>
+                <Text style={styles.nutritionMacroVal}>{Math.round(todayNutrition?.totalCarb || 0)}g</Text>
+              </View>
+              <View style={styles.nutritionMacroItem}>
+                <Text style={[styles.nutritionMacroDot, { color: "#00BCD4" }]}>● Fat</Text>
+                <Text style={styles.nutritionMacroVal}>{Math.round(todayNutrition?.totalFat || 0)}g</Text>
+              </View>
+            </View>
           </View>
 
           <SectionHeader
@@ -699,4 +738,70 @@ const styles = StyleSheet.create({
   quoteTitle: { color: colors.text, fontSize: 9, fontWeight: "800" },
   quoteDetail: { color: colors.muted, fontSize: 8, marginTop: 3 },
   quoteNumber: { color: colors.green, fontSize: 10, fontWeight: "900" },
+  nutritionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  nutritionMainRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  nutritionKcalValue: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "800",
+  },
+  nutritionKcalUnit: {
+    color: colors.orange,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  nutritionSubText: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  nutritionScanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.orange,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  nutritionScanIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  nutritionScanText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  nutritionMacroRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceRaised,
+  },
+  nutritionMacroItem: {
+    alignItems: "center",
+  },
+  nutritionMacroDot: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  nutritionMacroVal: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });
