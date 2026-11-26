@@ -82,5 +82,6 @@ app.use("/api/workout-plans", workoutplansRouter);
 app.use("/api/workoutplans", workoutplansRouter);
 app.use("/workoutsessions", workoutsessionsRouter);
 app.use("/api", exerciseMediaRoutes);
+app.use("/api/nutrition", require("./routes/nutrition.route"));
 
 module.exports = app;
