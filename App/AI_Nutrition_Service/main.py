@@ -13,6 +13,7 @@ from pydantic import BaseModel
 import onnxruntime as ort
 
 from food_vision_analyzer import analyze_food_image
+from gemini_food_analyzer import analyze_meal_with_gemini_or_fallback, get_gemini_api_key, _WORKING_MODEL
 
 # =====================================================
 # CẤU HÌNH & KHỞI TẠO MÔ HÌNH TOÀN CỤC
@@ -119,9 +120,14 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
 @app.get("/health", tags=["System"])
 def health_check():
     """Kiểm tra tình trạng hoạt động của AI Microservice"""
+    api_key = get_gemini_api_key()
+    has_gemini = len(api_key) > 5
+    from gemini_food_analyzer import _WORKING_MODEL
     return {
         "status": "healthy",
         "service": "AI Nutrition Inference Service",
+        "gemini_vision_enabled": has_gemini,
+        "engine": f"gemini_vision ({_WORKING_MODEL})" if has_gemini else "local_vision_engine",
         "model_loaded": model_session is not None,
         "classes_count": len(labels_data),
         "onnx_model_path": MODEL_PATH
@@ -156,12 +162,15 @@ async def predict_meal(
 
     t_start = time.perf_counter()
 
-    # 1. Phân tích đặc trưng thị giác thực tế từ ảnh chụp đĩa thức ăn
+    # 1. Phân tích qua Gemini Vision Multimodal AI (với hybrid fallback sang local vision analyzer nếu không có key hoặc offline)
     try:
-        visual_candidates = analyze_food_image(contents, labels_data)
+        visual_candidates, engine_used = analyze_meal_with_gemini_or_fallback(
+            contents, labels_data, analyze_food_image
+        )
     except Exception as e:
-        print(f"[AI-Service] Lỗi trích xuất thị giác: {e}")
+        print(f"[AI-Service] Lỗi phân tích ảnh: {e}")
         visual_candidates = []
+        engine_used = "error"
 
     predictions = []
     
@@ -181,6 +190,7 @@ async def predict_meal(
                 )
 
     t_infer_ms = (time.perf_counter() - t_start) * 1000
+    print(f"[AI-Service] Phân tích thành công bằng [{engine_used}] - Tìm thấy: {len(predictions)} món - Thời gian: {t_infer_ms:.1f}ms")
 
     # Nếu không nhận diện được món ăn nào trong ảnh, trả về rỗng thay vì tự bịa món mặc định
     return PredictResponse(
