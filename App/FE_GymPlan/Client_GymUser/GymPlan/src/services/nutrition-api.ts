@@ -98,31 +98,54 @@ export interface DailySummaryResponse {
 export const nutritionApi = {
   /**
    * Gửi file ảnh lên backend để phân tích qua AI
+   * Hỗ trợ Base64 (tránh lỗi FormDataPart trên iOS/Expo) hoặc FormData
    */
-  analyzeImage: async (imageUri: string, mimeType = "image/jpeg"): Promise<AnalyzeImageResponse> => {
+  analyzeImage: async (imageUri: string, base64?: string | null, mimeType = "image/jpeg"): Promise<AnalyzeImageResponse> => {
     const session = getAuthSession();
-    const formData = new FormData();
-
-    // Định dạng file cho React Native / Expo FormData
-    const filename = imageUri.split("/").pop() || "dish.jpg";
-    formData.append("image", {
-      uri: imageUri,
-      name: filename,
-      type: mimeType,
-    } as any);
-
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/nutrition/analyze-image`, {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-        headers: {
-          ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-        },
-      });
+      let response: Response;
+
+      if (base64) {
+        // Gửi qua JSON Base64: 100% an toàn trên mọi thiết bị iOS/Android
+        response = await fetch(`${API_BASE_URL}/api/nutrition/analyze-image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+          },
+          body: JSON.stringify({
+            imageBase64: base64,
+            mimeType,
+          }),
+          signal: controller.signal,
+        });
+      } else {
+        const formData = new FormData();
+        const filename = imageUri.split("/").pop() || "dish.jpg";
+        try {
+          const resBlob = await fetch(imageUri);
+          const blob = await resBlob.blob();
+          formData.append("image", blob, filename);
+        } catch {
+          formData.append("image", {
+            uri: imageUri,
+            name: filename,
+            type: mimeType,
+          } as any);
+        }
+
+        response = await fetch(`${API_BASE_URL}/api/nutrition/analyze-image`, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+          headers: {
+            ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+          },
+        });
+      }
 
       clearTimeout(timeout);
       const payload = await response.json();

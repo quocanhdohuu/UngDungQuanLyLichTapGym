@@ -14,6 +14,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { optimizeFoodImage } from "@/utils/image-optimizer";
 import { nutritionApi, AnalyzeImageResponse } from "@/services/nutrition-api";
+import { setNutritionScanResult } from "@/services/nutrition-store";
 
 export default function NutritionCameraScreen() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function NutritionCameraScreen() {
       if (!permission.granted) {
         Alert.alert(
           "Cần quyền truy cập Camera",
-          "Ứng dụng cần quyền Camera để chụp ảnh suất ăn và nhận diện dinh dưỡng."
+          "Vui lòng vào Cài đặt để cho phép ứng dụng mở máy ảnh chụp suất ăn."
         );
         return;
       }
@@ -39,11 +40,13 @@ export default function NutritionCameraScreen() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await processAndAnalyze(result.assets[0].uri);
+        const asset = result.assets[0];
+        await processAndAnalyze(asset.uri, asset.base64);
       }
     } catch (error: any) {
       Alert.alert("Lỗi chụp ảnh", error.message || "Không thể mở camera.");
@@ -51,28 +54,21 @@ export default function NutritionCameraScreen() {
   };
 
   /**
-   * Chọn ảnh có sẵn từ thư viện ảnh
+   * Chọn ảnh có sẵn từ thư viện ảnh (sử dụng System Picker không cần cấp quyền trên iOS)
    */
   const handlePickFromLibrary = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Cần quyền thư viện ảnh",
-          "Vui lòng cấp quyền truy cập ảnh để chọn hình suất ăn."
-        );
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await processAndAnalyze(result.assets[0].uri);
+        const asset = result.assets[0];
+        await processAndAnalyze(asset.uri, asset.base64);
       }
     } catch (error: any) {
       Alert.alert("Lỗi chọn ảnh", error.message || "Không thể mở thư viện ảnh.");
@@ -82,31 +78,29 @@ export default function NutritionCameraScreen() {
   /**
    * Nén ảnh và gửi sang Backend AI phân tích
    */
-  const processAndAnalyze = async (rawUri: string) => {
+  const processAndAnalyze = async (rawUri: string, base64Data?: string | null) => {
     setSelectedImage(rawUri);
     setIsAnalyzing(true);
-    setStatusMessage("Đang tối ưu hóa dung lượng ảnh...");
+    setStatusMessage("Đang chuẩn bị ảnh...");
 
     try {
-      // 1. Tối ưu nén ảnh client-side
-      const optimized = await optimizeFoodImage(rawUri);
-      
       setStatusMessage("AI đang nhận diện món ăn & ước lượng Calo...");
       const t0 = Date.now();
 
-      // 2. Gửi ảnh sang backend
-      const result: AnalyzeImageResponse = await nutritionApi.analyzeImage(optimized.uri);
+      // Gửi ảnh sang backend (sử dụng base64 để tối ưu và tránh lỗi FormData trên iOS)
+      const result: AnalyzeImageResponse = await nutritionApi.analyzeImage(rawUri, base64Data);
       const latency = Date.now() - t0;
       console.log(`[Nutrition] Phân tích hoàn tất sau ${latency}ms`);
 
+      // Lưu kết quả vào in-memory store an toàn
+      setNutritionScanResult(result, rawUri);
       setIsAnalyzing(false);
 
-      // 3. Chuyển tiếp sang màn hình Review khẩu phần
+      // Chuyển tiếp sang màn hình Review khẩu phần
       router.push({
         pathname: "/nutrition/review" as any,
         params: {
-          imageUri: encodeURIComponent(optimized.uri),
-          analysisData: encodeURIComponent(JSON.stringify(result)),
+          imageUri: encodeURIComponent(rawUri),
         },
       });
     } catch (error: any) {

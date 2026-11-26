@@ -9,15 +9,35 @@ const nutritionController = {
    */
   analyzeImage: async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: "Vui lòng đính kèm file ảnh suất ăn (field: image)." });
+      let fileBuffer = null;
+      let mimetype = "image/jpeg";
+      let originalname = "dish.jpg";
+
+      if (req.file) {
+        fileBuffer = req.file.buffer;
+        mimetype = req.file.mimetype || "image/jpeg";
+        originalname = req.file.originalname || "dish.jpg";
+      } else if (req.body?.imageBase64 || req.body?.image) {
+        const rawBase64 = req.body.imageBase64 || req.body.image;
+        const matches = rawBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          mimetype = matches[1];
+          fileBuffer = Buffer.from(matches[2], "base64");
+        } else {
+          fileBuffer = Buffer.from(rawBase64, "base64");
+          mimetype = req.body.mimeType || "image/jpeg";
+        }
+      }
+
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ message: "Vui lòng đính kèm file ảnh suất ăn (field: image hoặc imageBase64)." });
       }
 
       // 1. Gửi ảnh sang AI Microservice để phân tích
       const aiResult = await aiNutritionService.predictMealFromImage(
-        req.file.buffer,
-        req.file.originalname || "dish.jpg",
-        req.file.mimetype || "image/jpeg"
+        fileBuffer,
+        originalname,
+        mimetype
       );
 
       const predictions = aiResult.predictions || [];

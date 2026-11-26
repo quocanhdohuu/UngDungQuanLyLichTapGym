@@ -11,5 +11,13 @@ npm run dev
 cd "App/FE_GymPlan/Client_GymUser/GymPlan"
 npm start
 4.Khởi động Web admin:
-cd "App/BE_GymPlan"
+cd "App/FE_GymPlan/Admin/Manage_GymPlan"
 npm run dev
+
+
+
+Để kết nối điện thoại:
+(Máy tính và điện thoại kết nối cùng 1 wifi)
+Thay đổi ipconfig trong 2 file
+App\FE_GymPlan\Client_GymUser\GymPlan\src\services\api.ts
+App\FE_GymPlan\Client_GymUser\GymPlan\.env

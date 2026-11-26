@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import onnxruntime as ort
 
+from food_vision_analyzer import analyze_food_image
+
 # =====================================================
 # CẤU HÌNH & KHỞI TẠO MÔ HÌNH TOÀN CỤC
 # =====================================================
@@ -152,43 +154,64 @@ async def predict_meal(
     if len(contents) == 0:
         raise HTTPException(status_code=400, detail="File ảnh rỗng.")
 
-    # 1. Tiền xử lý ảnh
-    input_tensor = preprocess_image(contents)
-
-    # 2. Suy luận qua ONNX Runtime
     t_start = time.perf_counter()
-    logits, mass_preds = model_session.run(output_names, {input_name: input_tensor})
-    t_infer_ms = (time.perf_counter() - t_start) * 1000
 
-    # 3. Tính toán xác suất (Sigmoid) và trích xuất nguyên liệu
-    probs = 1.0 / (1.0 + np.exp(-logits[0]))
-    mass = mass_preds[0]
+    # 1. Phân tích đặc trưng thị giác thực tế từ ảnh chụp đĩa thức ăn
+    try:
+        visual_candidates = analyze_food_image(contents, labels_data)
+    except Exception as e:
+        print(f"[AI-Service] Lỗi trích xuất thị giác: {e}")
+        visual_candidates = []
 
-    sorted_indices = np.argsort(probs)[::-1]
-    
     predictions = []
-    for idx in sorted_indices:
-        prob = float(probs[idx])
-        if prob < threshold and len(predictions) >= 2:
-            break
-        if len(predictions) >= top_k:
-            break
-            
-        label_info = labels_data[idx]
-        raw_grams = round(float(mass[idx]), 1)
-        default_grams = float(label_info.get("default_grams", 100.0))
-        final_grams = raw_grams if raw_grams >= 15.0 else default_grams
+    
+    # Nếu trích xuất thị giác thành công các thành phần thực tế
+    if len(visual_candidates) > 0:
+        for cand in visual_candidates[:top_k]:
+            if cand["confidence"] >= threshold or len(predictions) < 1:
+                predictions.append(
+                    IngredientPrediction(
+                        code=cand["code"],
+                        name_vi=cand["name_vi"],
+                        name_en=cand.get("name_en"),
+                        category=cand.get("category", "OTHER"),
+                        confidence=round(float(cand["confidence"]), 4),
+                        estimated_grams=round(float(cand["estimated_grams"]), 1)
+                    )
+                )
 
-        predictions.append(
-            IngredientPrediction(
-                code=label_info["code"],
-                name_vi=label_info["name_vi"],
-                name_en=label_info.get("name_en"),
-                category=label_info.get("category", "OTHER"),
-                confidence=round(prob, 4),
-                estimated_grams=round(final_grams, 1)
+    # 2. Dự phòng: Nếu ảnh không trích xuất được màu sắc rõ rệt, dùng suy luận ONNX
+    if len(predictions) == 0:
+        input_tensor = preprocess_image(contents)
+        logits, mass_preds = model_session.run(output_names, {input_name: input_tensor})
+        probs = 1.0 / (1.0 + np.exp(-logits[0]))
+        mass = mass_preds[0]
+        sorted_indices = np.argsort(probs)[::-1]
+        
+        for idx in sorted_indices:
+            prob = float(probs[idx])
+            if prob < threshold and len(predictions) >= 2:
+                break
+            if len(predictions) >= top_k:
+                break
+                
+            label_info = labels_data[idx]
+            raw_grams = round(float(mass[idx]), 1)
+            default_grams = float(label_info.get("default_grams", 100.0))
+            final_grams = raw_grams if raw_grams >= 15.0 else default_grams
+
+            predictions.append(
+                IngredientPrediction(
+                    code=label_info["code"],
+                    name_vi=label_info["name_vi"],
+                    name_en=label_info.get("name_en"),
+                    category=label_info.get("category", "OTHER"),
+                    confidence=round(prob, 4),
+                    estimated_grams=round(final_grams, 1)
+                )
             )
-        )
+
+    t_infer_ms = (time.perf_counter() - t_start) * 1000
 
     return PredictResponse(
         status="success",

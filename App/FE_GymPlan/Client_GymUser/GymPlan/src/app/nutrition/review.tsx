@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { getAuthSession } from "@/auth-session";
 import { nutritionApi, AnalyzeImageResponse } from "@/services/nutrition-api";
+import { getNutritionScanResult } from "@/services/nutrition-store";
 import { IngredientSearchModal } from "@/components/nutrition/ingredient-search-modal";
 
 interface EditableMealItem {
@@ -42,18 +43,23 @@ const MEAL_TYPES = [
 export default function NutritionReviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ imageUri?: string; analysisData?: string }>();
+  const scanStore = getNutritionScanResult();
 
   // Giải mã dữ liệu ảnh và kết quả AI truyền từ Camera
-  const rawImageUri = params.imageUri ? decodeURIComponent(params.imageUri) : null;
+  const rawImageUri = scanStore.imageUri || (params.imageUri ? decodeURIComponent(params.imageUri) : null);
   
   const parsedAnalysis: AnalyzeImageResponse | null = useMemo(() => {
+    if (scanStore.analysis) return scanStore.analysis;
     if (!params.analysisData) return null;
+    try {
+      return JSON.parse(params.analysisData);
+    } catch {}
     try {
       return JSON.parse(decodeURIComponent(params.analysisData));
     } catch {
       return null;
     }
-  }, [params.analysisData]);
+  }, [params.analysisData, scanStore.analysis]);
 
   // Xác định bữa ăn mặc định theo giờ trong ngày
   const defaultMealType = useMemo(() => {
@@ -72,8 +78,9 @@ export default function NutritionReviewScreen() {
 
   // Danh sách các nguyên liệu có thể chỉnh sửa số gram
   const [items, setItems] = useState<EditableMealItem[]>(() => {
-    if (!parsedAnalysis?.predictions?.length) return [];
-    return parsedAnalysis.predictions.map((p, idx) => ({
+    const source = scanStore.analysis || parsedAnalysis;
+    if (!source?.predictions?.length) return [];
+    return source.predictions.map((p, idx) => ({
       ingredientId: p.ingredientId || (idx + 1),
       code: p.code,
       nameVi: p.nameVi,
@@ -87,6 +94,28 @@ export default function NutritionReviewScreen() {
       fatPerGram: p.fatPerGram,
     }));
   });
+
+  // Tự động đồng bộ items khi dữ liệu phân tích sẵn sàng (giải quyết lỗi race condition trong Expo Router)
+  useEffect(() => {
+    const source = scanStore.analysis || parsedAnalysis;
+    if (source?.predictions?.length && items.length === 0) {
+      setItems(
+        source.predictions.map((p, idx) => ({
+          ingredientId: p.ingredientId || (idx + 1),
+          code: p.code,
+          nameVi: p.nameVi,
+          category: p.category,
+          confidence: p.confidence,
+          aiEstimatedGrams: p.estimatedGrams,
+          userFinalGrams: p.estimatedGrams || 100,
+          kcalPerGram: p.kcalPerGram,
+          proteinPerGram: p.proteinPerGram,
+          carbPerGram: p.carbPerGram,
+          fatPerGram: p.fatPerGram,
+        }))
+      );
+    }
+  }, [scanStore.analysis, parsedAnalysis]);
 
   // Tính toán Tổng Calo & Macros Real-time mỗi khi user thay đổi gram
   const liveTotals = useMemo(() => {

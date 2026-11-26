@@ -35,6 +35,13 @@
       ],
       "expo-video",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ứng dụng cần truy cập thư viện ảnh để bạn chọn hình suất ăn.",
+          "cameraPermission": "Ứng dụng cần truy cập máy ảnh để chụp hình suất ăn tính Calo."
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store"
     ],
